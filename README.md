@@ -9,6 +9,6 @@
  
 ## Resources
  
- * [ACIP HBV Universal Vaccination recommendation]() (Link forthcoming)
+ * [ACIP HBV Universal Vaccination recommendation, MMWR](https://www.cdc.gov/mmwr/volumes/71/wr/mm7113a1.htm?s_cid=mm7113a1_w#suggestedcitation) (Link forthcoming)
  * [UW HBV Online](https://www.hepatitisb.uw.edu/)
  
