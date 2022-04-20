@@ -1,0 +1,61 @@
+DAG CODE:
+
+% This code uses the tikz package
+\begin{tikzpicture}
+\node (v0) at (-0.453,0.350) {HBV Screening};
+\node (v1) at (-0.155,0.351) {HBV Vaccination};
+\node (v2) at (-1.35,0.352) {Housing Status};
+\node (v3) at (-1.14,0.345) {HCV+};
+\node (v4) at (-1.15,0.358) {IVDU};
+\node (v5) at (-0.453,0.360) {HAV Screening};
+\node (v6) at (-0.159,0.360) {HAV Vaccination};
+\node (v7) at (-1.55,0.368) {Age};
+\node (v8) at (-1.50,0.341) {Gender};
+\node (v9) at (-1.27,0.330) {Race/Ethnicity};
+\node (v10) at (-0.735,0.332) {cirrhosis (FIB-4)};
+\node (v11) at (-0.769,0.378) {HIV+};
+\node (v12) at (-1.28,0.378) {SES};
+\draw [->] (v2) edge (v0);
+\draw [->] (v0) edge (v1);
+\draw [->] (v3) edge (v0);
+\draw [->] (v4) edge (v0);
+\draw [->] (v0) edge (v6);
+\draw [->] (v3) edge (v5);
+\draw [->] (v2) edge (v5);
+\draw [->] (v4) edge (v5);
+\draw [->] (v5) edge (v6);
+\draw [->] (v7) edge (v2);
+\draw [->] (v7) edge (v1);
+\draw [->] (v7) edge (v6);
+\draw [->] (v4) edge (v2);
+\draw [->] (v4) edge (v3);
+\draw [->] (v3) edge (v10);
+\draw [->] (v10) edge (v0);
+\draw [->] (v10) edge (v5);
+\draw [->] (v8) edge (v10);
+\draw [->] (v8) edge (v4);
+\draw [->] (v8) edge (v2);
+\draw [->] (v9) edge (v2);
+\draw [->] (v9) edge (v3);
+\draw [->] (v9) edge (v4);
+\draw [->] (v9) edge (v10);
+\draw [->] (v4) edge (v11);
+\draw [->] (v11) edge (v10);
+\draw [->] (v11) edge (v0);
+\draw [->] (v11) edge (v5);
+\draw [->] (v2) edge (v10);
+\draw [->] (v2) edge (v11);
+\draw [->] (v2) edge (v3);
+\draw [->] (v12) edge (v2);
+\draw [->] (v12) edge (v4);
+\draw [->] (v7) edge (v12);
+\draw [->] (v8) edge (v12);
+\draw [->] (v9) edge (v12);
+\draw [->] (v12) edge (v0);
+\draw [->] (v12) edge (v5);
+\draw [->] (v12) edge (v11);
+\draw [->] (v9) edge (v11);
+\draw [->] (v11) edge (v7);
+\draw [->] (v3) edge (v7);
+\draw [->] (v7) edge (v10);
+\end{tikzpicture}
