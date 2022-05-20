@@ -1,0 +1,156 @@
+---
+title: "Dataset"
+author: "Matthew Hoctor"
+date: "5/6/2022"
+output:
+  pdf_document:
+    toc: yes
+    toc_depth: 3
+  html_document:
+    number_sections: no
+    theme: lumen
+    toc: yes
+    toc_float:
+      collapsed: yes
+      smooth_scroll: no
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+# library(dplyr)
+# library(readxl)
+library(openxlsx)
+library(tidyverse)
+library(janitor)
+library(gtsummary)
+# library(ggplot2)
+# library(gridExtra)        #grid.arrange for multiple ggplots
+# library(reshape2)       #melt function for simple longform datasets
+# library(CarletonStats)
+# library(pwr)
+# library(BSDA)
+# library(exact2x2)
+# library(car)
+# library(dvmisc)
+# library(emmeans)
+# library(DescTools)
+# library(DiagrammeR)     #for plotting trees
+# library(nlme)
+# library(doBy)
+# library(geepack)
+# library(rje)
+# library(ISLR2)
+# library(psych)
+# library(MASS)
+# library(caret)            #for confusionMatrix function
+# library(rje)
+# library(class)          #for knn function
+# library(e1071)          #for naiveBayes function & SVM svm() funcion
+# library(boot)           #for boot function
+# library(covTest)        #for covTest function
+# library(leaps)          #for regsubsets function for best subset selection
+# library(broom)
+# library(glmnet)         #for glmnet() for shrinkage methods
+# library(doParallel)     #for parallel computing in glmnet(); does not work
+# library(pls)            #for pcr function
+# library(qpcR)           #for RSS function
+# library(splines)        #for bs() function for basis function of regression splines
+# library(quantreg)       #for quantreg() for quantile regression
+# library(tree)           #older package for tree regression
+# library(rpart)          #more maintained package for tree regression
+# library(rattle)         #for visually appealing tree plotting
+# library(randomForest)   #for random forest technique
+# library(party)          #?cforest function for plotting random forests?
+# library(xgboost)
+# library(gbm)            #more gradient boosting functions
+# library(LiblineaR)
+# library(svmpath)
+# library(msvmpath)
+# library(scatterplot3d)    #for the 3d scatterplot of pca
+# library(mclust)           #for cluster analysis; also imputeData() & imputePairs() functions
+# library(tightClust)       #another clustering library; tight.clust() function
+# library(softImpute)       #for imputing missing data
+# library(factoextra)       #for plotting clusters from k-means
+# library(keras)
+# library(neuralnet)          #traditional neutal network package
+```
+
+# Import Data
+
+Import the main dataset
+
+```{r}
+data <- read.xlsx(xlsxFile = "data/OPTIONS DATABASE v2.0_HAV_HBV.xlsx")
+```
+
+Import the extra data
+
+```{r}
+allergy <- read.xlsx(xlsxFile = "data/HAV_HBV data_pull_de_ID.xlsx",
+                      sheet = "Allergies")
+vaccine <- read.xlsx(xlsxFile = "data/HAV_HBV data_pull_de_ID.xlsx",
+                      sheet = "Any_vaccine")
+hep_tests <- read.xlsx(xlsxFile = "data/HAV_HBV data_pull_de_ID.xlsx",
+                      sheet = "hepatitis_tests")
+labs <- read.xlsx(xlsxFile = "data/HAV_HBV data_pull_de_ID.xlsx",
+                      sheet = "other_labs")
+
+# Import chart review data
+chart <- read.xlsx(xlsxFile = "data/STI_chart_review - deID.xlsx",
+                      sheet = "chart_review")
+```
+
+# Cleaning the dataset
+
+```{r}
+dat <- data
+```
+
+
+# Variables
+
+
+
+# Preliminary Table 1
+
+```{r}
+dat %>%
+  select(age.at.admission, gender.m.or.f.lowercase) %>%
+  tbl_summary(
+    digits = list(
+      age.at.admission ~2
+    ),
+    label = list(
+      age.at.admission ~ "Age",
+      gender.m.or.f.lowercase ~ "Gender"
+    ),
+    statistic = list(
+      all_continuous() ~ "{mean}",
+      all_categorical() ~ "{n} ({p}%)"
+    )
+  ) %>%
+  # add_p() %>%
+  modify_caption("**Table 1. Patient Characteristics**") %>%
+  bold_labels()
+```
+
+# Old Unused Code
+
+```{r}
+# Import the main dataset
+data <- read_excel(path = "data/OPTIONS DATABASE v2.0_HAV_HBV.xlsx")
+
+# Import the extra data
+allergy <- read_excel(path = "data/HAV_HBV data_pull_de_ID.xlsx",
+                      sheet = "Allergies")
+vaccine <- read_excel(path = "data/HAV_HBV data_pull_de_ID.xlsx",
+                      sheet = "Any_vaccine")
+hep_tests <- read_excel(path = "data/HAV_HBV data_pull_de_ID.xlsx",
+                      sheet = "hepatitis_tests")
+labs <- read_excel(path = "data/HAV_HBV data_pull_de_ID.xlsx",
+                      sheet = "other_labs")
+
+# Import chart review data
+chart <- read_excel(path = "data/STI_chart_review - deID.xlsx",
+                      sheet = "chart_review")
+```
