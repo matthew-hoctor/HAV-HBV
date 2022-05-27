@@ -264,6 +264,12 @@ table(dat$hcv2, dat$HCVAb_Result, useNA = "ifany")
 table(dat$hcv2, dat$hcv, useNA = "ifany")
 ```
 
+#### Discordance
+
+```{r}
+table(dat$hcv2, dat$hcv, useNA = "ifany")
+```
+
 There is not complete concordance in this encoding.  We can also consider HCV status at admission:
 
 ```{r}
