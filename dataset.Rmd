@@ -3,9 +3,6 @@ title: "Dataset"
 author: "Matthew Hoctor"
 date: "5/6/2022"
 output:
-  pdf_document:
-    toc: yes
-    toc_depth: 3
   html_document:
     number_sections: no
     theme: lumen
@@ -13,6 +10,9 @@ output:
     toc_float:
       collapsed: yes
       smooth_scroll: no
+  pdf_document:
+    toc: yes
+    toc_depth: 3
 ---
 
 ```{r setup, include=FALSE}
@@ -75,12 +75,17 @@ library(gtsummary)
 # library(neuralnet)          #traditional neutal network package
 ```
 
+# Issues
+
+ * Discordant HCV data
+ * Lack of temporality info in labs
+
 # Import Data
 
 Import the main dataset
 
 ```{r}
-data <- read.xlsx(xlsxFile = "data/OPTIONS DATABASE v2.0_HAV_HBV.xlsx")
+data_v2 <- read.xlsx(xlsxFile = "data/OPTIONS DATABASE v2.0_HAV_HBV.xlsx")
 ```
 
 Import the extra data
@@ -89,68 +94,521 @@ Import the extra data
 allergy <- read.xlsx(xlsxFile = "data/HAV_HBV data_pull_de_ID.xlsx",
                       sheet = "Allergies")
 vaccine <- read.xlsx(xlsxFile = "data/HAV_HBV data_pull_de_ID.xlsx",
-                      sheet = "Any_vaccine")
+                      sheet = "Any_vaccine",
+                     detectDates = TRUE)
 hep_tests <- read.xlsx(xlsxFile = "data/HAV_HBV data_pull_de_ID.xlsx",
                       sheet = "hepatitis_tests")
 labs <- read.xlsx(xlsxFile = "data/HAV_HBV data_pull_de_ID.xlsx",
                       sheet = "other_labs")
+```
 
-# Import chart review data
+Import chart review data
+
+```{r}
 chart <- read.xlsx(xlsxFile = "data/STI_chart_review - deID.xlsx",
                       sheet = "chart_review")
 ```
 
 # Cleaning the dataset
 
+Creates a new dataset to modify:
+
 ```{r}
-dat <- data
+dat <- data_v2
+```
+
+## Clean Variable names
+
+```{r}
+# Replaces . with _
+names(dat) <- str_replace_all(string = names(dat), 
+                                  pattern =  "\\.",  
+                                  replacement = "_")
+
+# Removes all text after the colon; i.e. the unnecessary encoding info
+names(dat) <- str_remove(string = names(dat), 
+                             pattern =  "\\:.*")
+```
+
+## Widen infection date information
+
+Creates a wide-format dataframe with Infection_ID in columns according to year of admission:
+
+```{r}
+dates <- dat %>% 
+  select(Patient_ID, Infection_ID, Year_of_Admission) %>%
+  pivot_wider(
+    id_cols = Patient_ID,
+    names_from = Year_of_Admission,
+    values_from = Infection_ID,
+    names_prefix = "i_",
+    names_sort = TRUE
+)
+```
+
+Creates a wide-format dataframe and finds the first (lowest value) infection:
+
+```{r}
+# creates a constant variable to pivot from
+dat$constant <- "infections"
+infections <- dat %>% 
+  select(Patient_ID, Infection_ID, constant) %>%
+  pivot_wider(
+    id_cols = Patient_ID,
+    names_from = constant,
+    values_from = Infection_ID,
+)
+
+# finds the first infection
+infections$first <- lapply(infections$infections, FUN = min)
+
+# cleans up the constant variable:
+dat$constant <- NULL
+```
+
+We can now merge these admission dates into the main dataset:
+
+```{r}
+dat <- merge(x = dat, 
+             y = dates,
+             by = "Patient_ID",
+             all.x = TRUE)
+
+dat <- merge(x = dat, 
+             y = infections,
+             by = "Patient_ID",
+             all.x = TRUE)
+
+# cleanup the temporary dataframes (dates, infections)
+remove(list = c("dates", "infections"))
+```
+
+## Merge chart review data
+
+```{r}
+dat <- merge(x = dat,
+             y = chart,
+             by = c("Patient_ID", "Infection_ID", "age_at_admission"),
+             all.x = TRUE)
+
+# cleanup chart review dataframe
+remove(chart)
+```
+
+## Widen & merge lab data
+
+```{r}
+# widen the lab data
+labsW <- labs %>%
+  filter(is.na(Lab_Component_Result_Value) == FALSE) %>%
+  pivot_wider(id_cols = c("Patient_ID", "Infection_ID"),
+              names_from = Lab_Component_Name,
+              values_from = Lab_Component_Result_Value,
+              values_fill = NA)
+# merge the lab data
+dat <- merge(x = dat,
+             y = labsW,
+             by = c("Patient_ID", "Infection_ID"),
+             all.x = TRUE)
+# cleanup
+remove(labsW)
+```
+
+
+## Re-Clean the dataset
+
+Re-cleaning the variable names
+
+```{r}
+# Replaces . with _
+names(dat) <- str_replace_all(string = names(dat), 
+                                  pattern =  "\\.",  
+                                  replacement = "_")
+
+# Removes all text after the colon; i.e. the unnecessary encoding info
+names(dat) <- str_remove(string = names(dat), 
+                             pattern =  "\\:.*")
+```
+
+Replacing NULL values with NA
+
+```{r}
+dat <- dat %>% replace(.=="NULL", NA)
 ```
 
 
 # Variables
 
+## Exposures
 
-
-# Preliminary Table 1
+### HCV
 
 ```{r}
-dat %>%
-  select(age.at.admission, gender.m.or.f.lowercase) %>%
-  tbl_summary(
-    digits = list(
-      age.at.admission ~2
-    ),
-    label = list(
-      age.at.admission ~ "Age",
-      gender.m.or.f.lowercase ~ "Gender"
-    ),
-    statistic = list(
+dat$hcv <- recode_factor(dat$`hcv_ab_or_pcr_positive`,
+                         '0' = "HCV-",
+                         '1' = "HCV+")
+```
+
+We can validate this data by cross-tabulation with chart-review data.  First we can find those patients with positive HCV Ab or HCV DNA:
+
+```{r}
+# Uncomment to tabulate HCV PCR & Ab results individually 
+# table(dat$HCVAb_Result, useNA = "ifany")
+# table(dat$HCV_PCR_result, useNA = "ifany")
+
+dat$hcv2 <- NA
+dat$hcv2[dat$HCVAb_Result == "Not Detected" | dat$HCVAb_Result == "Negative" | dat$HCVAb_Result == "Indeterminate; confirmation to follow"| dat$HCV_PCR_result == 0] <- 0
+dat$hcv2[dat$HCVAb_Result == "Detected" | dat$HCVAb_Result == "Positive" | dat$HCV_PCR_result == 1] <- 1
+
+table(dat$hcv2, dat$HCVAb_Result, useNA = "ifany")
+table(dat$hcv2, dat$hcv, useNA = "ifany")
+```
+
+There is not complete concordance in this encoding.  We can also consider HCV status at admission:
+
+```{r}
+table(dat$HCV_status_at_admission, useNA = "ifany")
+table(dat$HCV_status_at_admission, dat$hcv2, useNA = "ifany")
+dat$hcv3 <- 0 # dat$hcv2
+dat$hcv3[dat$HCV_status_at_admission != "No prior positive HCV test"] <- 1
+table(dat$hcv2, dat$hcv3, useNA = "ifany")
+table(dat$hcv, dat$hcv3, useNA = "ifany")
+```
+
+Now we can combine the HCV chart lab data with the main dataset
+
+```{r}
+dat$hcv4 <- dat$hcv
+
+# incorporating the new HCV Ab & PCR info from the hcv2 variable:
+dat$hcv4[is.na(dat$hcv4) & dat$hcv2 == 0] <- "HCV-"
+dat$hcv4[dat$hcv2 == 1] <- "HCV+"
+table(dat$hcv, useNA = "ifany")
+table(dat$hcv2, dat$hcv, useNA = "ifany")
+table(dat$hcv4, dat$hcv, useNA = "ifany")
+table(dat$hcv4, useNA = "ifany")
+```
+
+We can now combine the HCV chart clinical status prior to admission data with the main dataset
+
+```{r}
+table(dat$hcv4, useNA = "ifany")
+table(dat$hcv3, dat$hcv4, useNA = "ifany")
+dat$hcv4[is.na(dat$hcv4) & dat$hcv3 == 0] <- "HCV-"
+dat$hcv4[dat$hcv3 == 1] <- "HCV+"
+table(dat$hcv3, dat$hcv, useNA = "ifany")
+table(dat$hcv4, dat$hcv, useNA = "ifany")
+table(dat$hcv4, useNA = "ifany")
+```
+
+### Homeless
+
+```{r}
+dat$homeless <- recode_factor(dat$`housing`,
+                       '0' = "Housed",
+                       '1' = "Homeless")
+```
+
+### IVDU
+
+```{r}
+dat$ivdu <- 0
+dat$ivdu[dat$opioid_used == 1] <- 1
+dat$ivdu[dat$methamphetamine_used == 1] <-1
+dat$ivdu[dat$cocaine_used == 1] <- 1
+dat$ivdu <- factor(dat$ivdu,
+                   levels = c(0,1),
+                   labels = c("No Known IVDU", "IVDU"),
+                   ordered = TRUE)
+```
+
+
+
+
+## Outcomes
+
+
+
+## Covariates
+
+### Age
+
+```{r}
+dat$age <- dat$age_at_admission
+
+summary(dat$age)
+```
+
+### Gender
+
+```{r}
+dat$gender <- recode_factor(dat$gender_m_or_f_lowercase,
+                        'm' = 0,
+                        'f' = 1)
+dat$gender <- factor(dat$gender,
+                     levels = c(0,1),
+                     labels = c("Male", "Female"),
+                     ordered = TRUE)
+
+# gender variable for T1
+dat$genderM <- ifelse(dat$gender == "Male", 1, 0)
+```
+
+### Race/Ethnicity
+
+```{r}
+dat$race_eth <- NA
+dat$race_eth[dat$race == "white"] <-1
+dat$race_eth[dat$race == "black"] <- 2
+dat$race_eth[dat$ethnicity == "hispanic"] <-3
+dat$race_eth[dat$race == "american indian/alaska native"] <- 4
+dat$race_eth[dat$race == "asian"] <- 5
+dat$race_eth[dat$race == "other pacific islander"] <- 6
+dat$race_eth <- factor(dat$race_eth,
+                       levels = 1:6,
+                       labels = c("White", "Black", "Hispanic White", "AI/AN", "Asian", "Pacific Islander"))
+# table(dat$race_eth, useNA = "ifany")
+
+# create collapsed reace/eth for T1:
+dat$race_eth_t1 <- 4
+dat$race_eth_t1[dat$race == "white"] <-1
+dat$race_eth_t1[dat$race == "black"] <- 2
+dat$race_eth_t1[dat$ethnicity == "hispanic"] <-3
+dat$race_eth_t1 <- factor(dat$race_eth_t1,
+                          levels = 1:4,
+                          labels = c("White", "Black", "Hispanic White", "AI/AN, Asian, Pacific Islander, or Unknown"))
+
+table(dat$race_eth, dat$race_eth_t1, useNA = "ifany")
+```
+
+### Medicaid Eligibility
+
+```{r}
+dat$medicaid <- 0
+dat$medicaid[dat$insurance == "medicaid"] <- 1
+dat$medicaid[is.na(dat$insurance)] <- NA
+dat$medicaid <- factor(dat$medicaid,
+                       levels = 0:1,
+                       labels = c("Non-Medicaid Insurance", "Medicaid"),
+                       ordered = TRUE)
+
+# create medicaid variable for table 1
+dat$medicaid_t1 <- 0
+dat$medicaid_t1[dat$medicaid == "Medicaid"] <- 1
+
+table(dat$medicaid, dat$medicaid_t1, useNA = "ifany")
+```
+
+### HIV Status
+
+```{r}
+dat$hiv2 <- factor(dat$hiv,
+                  levels = 0:2,
+                  labels = c("HIV-", "HIV+", NA))
+
+# Create HIV variable for Table 1
+dat$hiv_t1 <- 0
+dat$hiv_t1[dat$hiv2 == "HIV+"] <- 1
+
+table(dat$hiv2, dat$hiv_t1)
+```
+
+We can cross-tabulate this with info from the chart review
+
+```{r}
+dat$HIV_Result[dat$HIV_Result == "HIV-1 was not detected in this sample.  These results are most likely suggestive of either the absence of HIV viremia or the presence of low-level HIV viremia at or below the assays lower limit of detection."] <- "HIV-1 was not detected in this sample."
+
+table(dat$HIV_Result, useNA = "ifany")
+dat$hiv3 <- 0
+dat$hiv3[is.na(dat$HIV_Result)] <- NA
+dat$hiv3[dat$HIV_Result == "HIV-1 RNA was detected in this sample." | dat$HIV_Result == 4900 | dat$HIV_Result == 64 | dat$HIV_Result == 760] <- 1
+table(dat$hiv3, dat$HIV_Result, useNA = "ifany")
+
+table(dat$hiv3, dat$hiv2, useNA = "ifany")
+```
+
+Partial concordance.
+
+### Allergies
+
+Yeast allergy is a contraindication to all available HBV vaccines, with the exception of PreHevbrio; while aminoglycoside allergy is a contraindication only to Twinrix.  Of the reactions listed in the dataset, gentamycin is an aminoglycoside, with high crossreactivity to neomycin (the preservative in Twinrix), and the PCV-13 vaccine is also a yeast-derived vaccine, and could presumably cause cross reaction.
+
+```{r}
+allergyW <- pivot_wider(allergy,
+                        id_cols = Patient_ID,
+                        names_from = Allergen_Name,
+                        values_from = Allergy_First_Reaction,
+                        names_sort = TRUE)
+
+#Deriving yeast allergy data from PCV-13 allergy:
+allergyW$yeast_allergy <- ifelse(allergyW$`PNEUMOC 13-VAL CONJ-DIP CR(PF)` == "NULL", 0, 1)
+
+#Deriving aminoglycoside allergy data from gentamycin allergy:
+allergyW$ag_allergy <- ifelse(allergyW$GENTAMICIN == "NULL", 0, 1)
+```
+
+We can now examine how many individuals have each allergy
+
+```{r}
+sum(allergyW$ag_allergy)
+sum(allergyW$yeast_allergy)
+```
+
+Only one of each.  We can now join this data into the main dataset:
+
+```{r}
+dat <- merge(x = dat, 
+             y = select(.data = allergyW,
+                            Patient_ID, 
+                            ag_allergy,
+                            yeast_allergy),
+             by = "Patient_ID",
+             all.x = TRUE)
+
+# cleanup
+remove(allergyW, allergy)
+```
+
+### FIB-4 & liver biomarkers
+
+We can find the FIB-4 initial values of the relevant labs (AST, ALT, platelets)
+
+```{r}
+dat$alt_f <- lapply(dat$`ALT (SGPT)`, FUN = first) %>% str_remove(pattern = "[:symbol:]") %>% as.numeric() 
+dat$ast_f <- lapply(dat$`AST(SGOT)`, FUN = first) %>% str_remove(pattern = "[:symbol:]") %>% as.numeric() 
+dat$plt_f <- lapply(dat$`PLATELET COUNT`, FUN = first) %>% str_remove(pattern = "[:symbol:]") %>% as.numeric() 
+
+dat$fib_4 <- dat$age * dat$ast_f * (dat$alt_f)^-0.5 / dat$plt_f
+```
+
+
+
+
+# Table 1
+
+Preliminary definitions:
+
+```{r}
+# Variables to tabulate
+variables <- c("age", "genderM", "medicaid_t1", "race_eth_t1", "hiv_t1", "fib_4")
+
+# Describes formatting of significant figures
+digits_list <- list(
+      age ~ 1,
+      fib_4 ~ 2
+    )
+
+# Describes labels for each variable
+label_list <- list(
+      age ~ "Age",
+      genderM ~ "Male Gender",
+      race_eth_t1 ~ "Race/Ethnicity",
+      medicaid_t1 ~ "Medicaid Eligible",
+      hiv_t1 ~ "HIV Positive",
+      fib_4 ~ "FIB-4"
+    )
+
+# Describes Statistics to compute
+statistic_list <- list(
       all_continuous() ~ "{mean}",
       all_categorical() ~ "{n} ({p}%)"
     )
-  ) %>%
-  # add_p() %>%
-  modify_caption("**Table 1. Patient Characteristics**") %>%
-  bold_labels()
+
+# Table Title
+title <- "**Table 1. Patient Characteristics**"
+
+# subset dataframe to include only data from first admissions
+dat_t1 <- subset(dat, Infection_ID == first)
+
+# Set the gtsummary theme:
+theme_gtsummary_journal(journal = "jama")
 ```
+
+Tabulating the sub-tables to be joined together
+
+```{r}
+t1_overall <- dat_t1 %>%
+  select(variables) %>%
+  tbl_summary(
+    digits = digits_list,
+    label = label_list,
+    statistic = statistic_list,
+    missing = "no"
+  ) 
+
+t1_hcv <- dat_t1 %>%
+  select(hcv4, variables) %>%
+  tbl_summary(
+    by = hcv4,
+    digits = digits_list,
+    label = label_list,
+    statistic = statistic_list,
+    missing = "no"
+  ) # %>% add_p()
+
+t1_ivdu <- dat_t1 %>%
+  select(ivdu, variables) %>%
+  tbl_summary(
+    by = ivdu,
+    digits = digits_list,
+    label = label_list,
+    statistic = statistic_list,
+    missing = "no"
+  ) # %>% add_p() 
+
+t1_homeless <- dat_t1 %>%
+  select(homeless, variables) %>%
+  tbl_summary(
+    by = homeless,
+    digits = digits_list,
+    label = label_list,
+    statistic = statistic_list,
+    missing = "no"
+  ) # %>% add_p()
+```
+
+Merging the tables and displaying output
+
+```{r}
+t1_merge <-
+  tbl_merge(
+    tbls = list(t1_overall, t1_hcv, t1_ivdu, t1_homeless),
+    tab_spanner = c("**Overall**", "**HCV Status**", "**Intravenous Drug Use**", "**Housing Status**")
+  ) %>%
+  modify_caption(title) %>%
+  bold_labels()
+
+# cleanup
+remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1_overall)
+```
+
+## T1
+
+```{r}
+t1_merge
+```
+
+
+# Misc Calculations
+
 
 # Old Unused Code
 
 ```{r}
-# Import the main dataset
-data <- read_excel(path = "data/OPTIONS DATABASE v2.0_HAV_HBV.xlsx")
-
-# Import the extra data
-allergy <- read_excel(path = "data/HAV_HBV data_pull_de_ID.xlsx",
-                      sheet = "Allergies")
-vaccine <- read_excel(path = "data/HAV_HBV data_pull_de_ID.xlsx",
-                      sheet = "Any_vaccine")
-hep_tests <- read_excel(path = "data/HAV_HBV data_pull_de_ID.xlsx",
-                      sheet = "hepatitis_tests")
-labs <- read_excel(path = "data/HAV_HBV data_pull_de_ID.xlsx",
-                      sheet = "other_labs")
-
-# Import chart review data
-chart <- read_excel(path = "data/STI_chart_review - deID.xlsx",
-                      sheet = "chart_review")
+# # Import the main dataset
+# data <- read_excel(path = "data/OPTIONS DATABASE v2.0_HAV_HBV.xlsx")
+# 
+# # Import the extra data
+# allergy <- read_excel(path = "data/HAV_HBV data_pull_de_ID.xlsx",
+#                       sheet = "Allergies")
+# vaccine <- read_excel(path = "data/HAV_HBV data_pull_de_ID.xlsx",
+#                       sheet = "Any_vaccine")
+# hep_tests <- read_excel(path = "data/HAV_HBV data_pull_de_ID.xlsx",
+#                       sheet = "hepatitis_tests")
+# labs <- read_excel(path = "data/HAV_HBV data_pull_de_ID.xlsx",
+#                       sheet = "other_labs")
+# 
+# # Import chart review data
+# chart <- read_excel(path = "data/STI_chart_review - deID.xlsx",
+#                       sheet = "chart_review")
 ```
