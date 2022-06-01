@@ -77,9 +77,15 @@ library(gtsummary)
 
 # Issues
 
- * Discordant HCV data
- * Lack of temporality info in labs
-
+ * Outstanding Issues
+   * Lack of temporality info in labs: unclear which labs to use (e.g. to calculate FIB-4)
+ * Resolved Issues
+   * Discordant HCV data: updated HCV +/- definition to include any evidence of past HCV exposure
+   * Discordant HIV data: apparent discordance is mostly due to lack of indication for HIV test in some patients; the HIV+ patient who tested negative could be due to viral suppression, but this is unclear, as there is no info in the dataset on HIV status on admission.
+ * To Do
+   * Incorporate chirrosis into FIB-4
+   * other out of range liver biomarkers
+   
 # Import Data
 
 Import the main dataset
@@ -214,8 +220,27 @@ dat <- merge(x = dat,
 remove(labsW)
 ```
 
+## Widen & merge hepatitis test data
 
-## Re-Clean the dataset
+```{r}
+# widen
+hepW <- hep_tests %>%
+  filter(is.na(Lab_Component_Result_Value) == FALSE) %>%
+  pivot_wider(id_cols = c("Patient_ID", "Infection_ID"),
+              names_from = Lab_Component_Name,
+              values_from = Lab_Component_Result_Value,
+              values_fill = NA,
+              names_sort = TRUE)
+# merge the hepatitis data
+dat <- merge(x = dat,
+             y = hepW,
+             by = c("Patient_ID", "Infection_ID"),
+             all.x = TRUE)
+# cleanup
+remove(hepW, hep_tests)
+```
+
+## Clean the full dataset
 
 Re-cleaning the variable names
 
@@ -236,12 +261,9 @@ Replacing NULL values with NA
 dat <- dat %>% replace(.=="NULL", NA)
 ```
 
+# Exposure Variables
 
-# Variables
-
-## Exposures
-
-### HCV
+## HCV
 
 ```{r}
 dat$hcv <- recode_factor(dat$`hcv_ab_or_pcr_positive`,
@@ -264,7 +286,7 @@ table(dat$hcv2, dat$HCVAb_Result, useNA = "ifany")
 table(dat$hcv2, dat$hcv, useNA = "ifany")
 ```
 
-#### Discordance
+### Discordance
 
 ```{r}
 table(dat$hcv2, dat$hcv, useNA = "ifany")
@@ -307,7 +329,7 @@ table(dat$hcv4, dat$hcv, useNA = "ifany")
 table(dat$hcv4, useNA = "ifany")
 ```
 
-### Homeless
+## Homeless
 
 ```{r}
 dat$homeless <- recode_factor(dat$`housing`,
@@ -315,7 +337,7 @@ dat$homeless <- recode_factor(dat$`housing`,
                        '1' = "Homeless")
 ```
 
-### IVDU
+## IVDU
 
 ```{r}
 dat$ivdu <- 0
@@ -328,16 +350,9 @@ dat$ivdu <- factor(dat$ivdu,
                    ordered = TRUE)
 ```
 
+# Covariates
 
-
-
-## Outcomes
-
-
-
-## Covariates
-
-### Age
+## Age
 
 ```{r}
 dat$age <- dat$age_at_admission
@@ -345,7 +360,7 @@ dat$age <- dat$age_at_admission
 summary(dat$age)
 ```
 
-### Gender
+## Gender
 
 ```{r}
 dat$gender <- recode_factor(dat$gender_m_or_f_lowercase,
@@ -358,9 +373,11 @@ dat$gender <- factor(dat$gender,
 
 # gender variable for T1
 dat$genderM <- ifelse(dat$gender == "Male", 1, 0)
+
+summary(dat$gender)
 ```
 
-### Race/Ethnicity
+## Race/Ethnicity
 
 ```{r}
 dat$race_eth <- NA
@@ -373,9 +390,12 @@ dat$race_eth[dat$race == "other pacific islander"] <- 6
 dat$race_eth <- factor(dat$race_eth,
                        levels = 1:6,
                        labels = c("White", "Black", "Hispanic White", "AI/AN", "Asian", "Pacific Islander"))
-# table(dat$race_eth, useNA = "ifany")
+table(dat$race_eth, useNA = "ifany")
+```
 
-# create collapsed reace/eth for T1:
+Create collapsed reace/eth for T1:
+  
+```{r}
 dat$race_eth_t1 <- 4
 dat$race_eth_t1[dat$race == "white"] <-1
 dat$race_eth_t1[dat$race == "black"] <- 2
@@ -387,7 +407,7 @@ dat$race_eth_t1 <- factor(dat$race_eth_t1,
 table(dat$race_eth, dat$race_eth_t1, useNA = "ifany")
 ```
 
-### Medicaid Eligibility
+## Medicaid Eligibility
 
 ```{r}
 dat$medicaid <- 0
@@ -405,7 +425,7 @@ dat$medicaid_t1[dat$medicaid == "Medicaid"] <- 1
 table(dat$medicaid, dat$medicaid_t1, useNA = "ifany")
 ```
 
-### HIV Status
+## HIV Status
 
 ```{r}
 dat$hiv2 <- factor(dat$hiv,
@@ -422,6 +442,7 @@ table(dat$hiv2, dat$hiv_t1)
 We can cross-tabulate this with info from the chart review
 
 ```{r}
+# reduces output to a readable length
 dat$HIV_Result[dat$HIV_Result == "HIV-1 was not detected in this sample.  These results are most likely suggestive of either the absence of HIV viremia or the presence of low-level HIV viremia at or below the assays lower limit of detection."] <- "HIV-1 was not detected in this sample."
 
 table(dat$HIV_Result, useNA = "ifany")
@@ -433,9 +454,19 @@ table(dat$hiv3, dat$HIV_Result, useNA = "ifany")
 table(dat$hiv3, dat$hiv2, useNA = "ifany")
 ```
 
-Partial concordance.
+Partial concordance.  This is possibly due to undetectable viral load during treatment.
 
-### Allergies
+```{r}
+hiv_discordance_subset <- subset(dat, hiv2 == "HIV+" & hiv3 == 0)
+hiv_discordance_subset$HIV_test
+hiv_discordance_subset$HIV_Result
+# cleanup
+rm(hiv_discordance_subset)
+```
+
+This is consistent with the above hypothesis.
+
+## Allergies
 
 Yeast allergy is a contraindication to all available HBV vaccines, with the exception of PreHevbrio; while aminoglycoside allergy is a contraindication only to Twinrix.  Of the reactions listed in the dataset, gentamycin is an aminoglycoside, with high crossreactivity to neomycin (the preservative in Twinrix), and the PCV-13 vaccine is also a yeast-derived vaccine, and could presumably cause cross reaction.
 
@@ -460,7 +491,14 @@ sum(allergyW$ag_allergy)
 sum(allergyW$yeast_allergy)
 ```
 
-Only one of each.  We can now join this data into the main dataset:
+Only one of each.  We can now examine the reactions to each:
+
+```{r}
+allergyW[allergyW$yeast_allergy == 1,]$`PNEUMOC 13-VAL CONJ-DIP CR(PF)`
+allergyW[allergyW$ag_allergy == 1,]$GENTAMICIN
+```
+
+The patient with 'allergy' to the PCV13 vaccine experienced pruritis (a common, >10%, reaction to this vaccine), whereas the patient with aminoglycoside allergy experienced hives.  We can now join this data into the main dataset:
 
 ```{r}
 dat <- merge(x = dat, 
@@ -475,7 +513,7 @@ dat <- merge(x = dat,
 remove(allergyW, allergy)
 ```
 
-### FIB-4 & liver biomarkers
+## FIB-4 & liver biomarkers
 
 We can find the FIB-4 initial values of the relevant labs (AST, ALT, platelets)
 
@@ -485,10 +523,35 @@ dat$ast_f <- lapply(dat$`AST(SGOT)`, FUN = first) %>% str_remove(pattern = "[:sy
 dat$plt_f <- lapply(dat$`PLATELET COUNT`, FUN = first) %>% str_remove(pattern = "[:symbol:]") %>% as.numeric() 
 
 dat$fib_4 <- dat$age * dat$ast_f * (dat$alt_f)^-0.5 / dat$plt_f
+
+summary(dat$fib_4)
 ```
 
 
+# Outcome Variables
 
+## HAV Screening
+
+
+
+## HAV Vaccination
+
+
+
+## HBV Screening
+
+
+
+## HBV Vaccination
+
+
+
+## HDV Screening
+
+```{r}
+dat$hdv_screen <- ifelse(is.na(dat$`HEP DELTA AB`),0,1)
+# table(dat$hdv_screen, dat$`HEP DELTA AB`)
+```
 
 # Table 1
 

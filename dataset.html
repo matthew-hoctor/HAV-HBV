@@ -254,8 +254,20 @@ div.tocify {
 <div id="issues" class="section level1">
 <h1>Issues</h1>
 <ul>
-<li>Discordant HCV data</li>
-<li>Lack of temporality info in labs</li>
+<li>Outstanding Issues
+<ul>
+<li>Lack of temporality info in labs: unclear which labs to use (e.g. to calculate FIB-4)</li>
+</ul></li>
+<li>Resolved Issues
+<ul>
+<li>Discordant HCV data: updated HCV +/- definition to include any evidence of past HCV exposure</li>
+<li>Discordant HIV data: apparent discordance is mostly due to lack of indication for HIV test in some patients; the HIV+ patient who tested negative could be due to viral suppression, but this is unclear, as there is no info in the dataset on HIV status on admission.</li>
+</ul></li>
+<li>To Do
+<ul>
+<li>Incorporate chirrosis into FIB-4</li>
+<li>other out of range liver biomarkers</li>
+</ul></li>
 </ul>
 </div>
 <div id="import-data" class="section level1">
@@ -619,8 +631,94 @@ dat &lt;- merge(x = dat,
 <pre class="r"><code># cleanup
 remove(labsW)</code></pre>
 </div>
-<div id="re-clean-the-dataset" class="section level2">
-<h2>Re-Clean the dataset</h2>
+<div id="widen-merge-hepatitis-test-data" class="section level2">
+<h2>Widen &amp; merge hepatitis test data</h2>
+<pre class="r"><code># widen
+hepW &lt;- hep_tests %&gt;%
+  filter(is.na(Lab_Component_Result_Value) == FALSE) %&gt;%
+  pivot_wider(id_cols = c(&quot;Patient_ID&quot;, &quot;Infection_ID&quot;),
+              names_from = Lab_Component_Name,
+              values_from = Lab_Component_Result_Value,
+              values_fill = NA,
+              names_sort = TRUE)</code></pre>
+<pre><code>## Warning: Values from `Lab_Component_Result_Value` are not uniquely identified; output will contain list-cols.
+## * Use `values_fn = list` to suppress this warning.
+## * Use `values_fn = {summary_fun}` to summarise duplicates.
+## * Use the following dplyr code to identify duplicates.
+##   {data} %&gt;%
+##     dplyr::group_by(Patient_ID, Infection_ID, Lab_Component_Name) %&gt;%
+##     dplyr::summarise(n = dplyr::n(), .groups = &quot;drop&quot;) %&gt;%
+##     dplyr::filter(n &gt; 1L)</code></pre>
+<pre class="r"><code># merge the hepatitis data
+dat &lt;- merge(x = dat,
+             y = hepW,
+             by = c(&quot;Patient_ID&quot;, &quot;Infection_ID&quot;),
+             all.x = TRUE)</code></pre>
+<pre><code>## Warning in merge.data.frame(x = dat, y = hepW, by
+## = c(&quot;Patient_ID&quot;, &quot;Infection_ID&quot;), : column names
+## &#39;generic_suppression_antibiotic_and_route_name_all_lowercase&#39;,
+## &#39;infection_onset&#39;, &#39;left_endocarditis_present&#39;,
+## &#39;systemic_emboli_NOS&#39;, &#39;right_endocarditis_present&#39;,
+## &#39;septic_thrombophlebitis_present&#39;, &#39;osteomyelitis_present&#39;,
+## &#39;vertebral_osteomyelitis_present&#39;, &#39;septic_arthritis_present&#39;,
+## &#39;septic_bursitis_present&#39;, &#39;epidural_abscess_present&#39;,
+## &#39;brain_abscess_present&#39;, &#39;meningitis&#39;, &#39;muscle_abscess_present&#39;,
+## &#39;liver_abscess_present&#39;, &#39;kidney_abscess_present&#39;, &#39;cardiac_abscess/
+## infectious_pericarditis_present&#39;, &#39;intra-abdominal_infection_present&#39;,
+## &#39;other_infection_present&#39;, &#39;list_other_infection_all_lowercase&#39;,
+## &#39;number_of_infectious_diagnoses&#39;, &#39;pathogen_cultured&#39;,
+## &#39;mssa_present&#39;, &#39;mrsa_present&#39;, &#39;initial_other_species_present&#39;,
+## &#39;initial_other_gram_positives_full_name_lowercase&#39;,
+## &#39;initial_gram_negative_full_name_all_lowercase&#39;, &#39;in-
+## hospital_new_organism_name_all_lowercase&#39;,
+## &#39;initial_gram_positive_beta_lactam_resistant&#39;,
+## &#39;initial_gram_positive_vancomycin_resistant&#39;,
+## &#39;gram_positive_fluoroquinolone_resistant&#39;, &#39;gram_positive_rifampin_resistant&#39;,
+## &#39;gram_negative_1st_gen_cephalosporin_resistant&#39;,
+## &#39;gram_negative_3rd_gen_cephalosporin_resistant&#39;,
+## &#39;gram_negative_piperacillin-tazobactam_resistant&#39;, &#39;gram_negative_esbl&#39;,
+## &#39;gram_negative_fluoroquinolone_resistant&#39;, &#39;inpatient_source_control_procedure&#39;,
+## &#39;antibiotic_route_before_conference_or_discharge&#39;,
+## &#39;initial_reason_po_or_lai_chosen_for_primary_antibiotic_before_conference_or_discharge&#39;,
+## &#39;duration_before_conference_or_discharge&#39;, &#39;antibiotic_agent_after_conference&#39;,
+## &#39;specific_agent_all_lowercase&#39;, &#39;antibiotic_route_after_conference&#39;,
+## &#39;reason_po_or_lai_chosen_after_conference&#39;, &#39;duration_after_conference&#39;,
+## &#39;options_picc_asseessment_overall_level_of_risk&#39;,
+## &#39;options_picc_assessment_illicit_drug_use_in_past_6_months&#39;,
+## &#39;options_picc_assessment_heavy_alcohol_use_in_past_6_months&#39;,
+## &#39;options_picc_assessment_homeless_or_unsafe_living_environment&#39;,
+## &#39;options_picc_assessment_cognitive_impairment&#39;,
+## &#39;options_picc_assessment_history_of_not_following_medical_recommendations&#39;,
+## &#39;options_picc_assessment_overall_magnitude_of_protective_factors&#39;,
+## &#39;options_picc_assessment_engagement_around_substance_use_and_sobriety&#39;,
+## &#39;options_picc_assessment_stable_living_situation&#39;,
+## &#39;options_picc_assessment_strong_support_network&#39;,
+## &#39;options_picc_assessment_level_of_care_recommendation_for_picc_safety_upon_discharge&#39;,
+## &#39;options_patient_goals&#39;, &#39;options_discharge_needs&#39;,
+## &#39;options_is_the_home_environment_safe&#39;,
+## &#39;options_transportation_available&#39;, &#39;options_does_patient_have_pcp&#39;,
+## &#39;options_transparency_from_all_teams_about_seriousness_of_infection_and_disease_progression_if_not_treated_optimally&#39;,
+## &#39;options_transparency_about_potential_health_risks_with_picc_line_and_picc_misuse&#39;,
+## &#39;antibiotic_changed_during_hospitalization_for_new_organism&#39;,
+## &#39;other_antibiotic_if_applicable&#39;, &#39;specific_agent_all_lowercase&#39;,
+## &#39;secondary_antibiotic_and_route_if_changed_all_lowercase&#39;,
+## &#39;treatment_antibiotic_route_changed_at_discharge&#39;,
+## &#39;antibiotic_treatment_duration_changed_at_discharge_compared_to_inpatient_recommendation_(including_after_new_organism_or_infection_recurrence)&#39;,
+## &#39;location_during_therapy_period_after_discharge&#39;,
+## &#39;treatment_completed&#39;, &#39;loss_to_follow_up_during_treatment&#39;,
+## &#39;relapse_of_infection_during_treatment_period&#39;, &#39;mortality_during_treatment&#39;,
+## &#39;cause_of_death&#39;, &#39;cause_of_death_all_lowercase&#39;,
+## &#39;unplanned_ed_visits_or_readmissions_during_treatment_period_(including_care_everywhere)&#39;,
+## &#39;specific_reason_for_ED_visit&#39;,
+## &#39;number_of_ED_visits_within_90_days_of_discharge&#39;,
+## &#39;reason_for_unplanned_readmission&#39;, &#39;specific_reason_for_readmission&#39;,
+## &#39;number_of_unplanned_readmissions_within_90_days_of_discharge&#39;,
+## &#39;IV_adverse_events&#39;, &#39;IV_misuse&#39; are duplicated in the result</code></pre>
+<pre class="r"><code># cleanup
+remove(hepW, hep_tests)</code></pre>
+</div>
+<div id="clean-the-full-dataset" class="section level2">
+<h2>Clean the full dataset</h2>
 <p>Re-cleaning the variable names</p>
 <pre class="r"><code># Replaces . with _
 names(dat) &lt;- str_replace_all(string = names(dat), 
@@ -634,12 +732,10 @@ names(dat) &lt;- str_remove(string = names(dat),
 <pre class="r"><code>dat &lt;- dat %&gt;% replace(.==&quot;NULL&quot;, NA)</code></pre>
 </div>
 </div>
-<div id="variables" class="section level1">
-<h1>Variables</h1>
-<div id="exposures" class="section level2">
-<h2>Exposures</h2>
-<div id="hcv" class="section level3">
-<h3>HCV</h3>
+<div id="exposure-variables" class="section level1">
+<h1>Exposure Variables</h1>
+<div id="hcv" class="section level2">
+<h2>HCV</h2>
 <pre class="r"><code>dat$hcv &lt;- recode_factor(dat$`hcv_ab_or_pcr_positive`,
                          &#39;0&#39; = &quot;HCV-&quot;,
                          &#39;1&#39; = &quot;HCV+&quot;)</code></pre>
@@ -671,8 +767,8 @@ table(dat$hcv2, dat$HCVAb_Result, useNA = &quot;ifany&quot;)</code></pre>
 ##   0      74    6    2
 ##   1       8  135    1
 ##   &lt;NA&gt;   17   70    7</code></pre>
-<div id="discordance" class="section level4">
-<h4>Discordance</h4>
+<div id="discordance" class="section level3">
+<h3>Discordance</h3>
 <pre class="r"><code>table(dat$hcv2, dat$hcv, useNA = &quot;ifany&quot;)</code></pre>
 <pre><code>##       
 ##        HCV- HCV+ &lt;NA&gt;
@@ -774,14 +870,14 @@ table(dat$hcv3, dat$hcv, useNA = &quot;ifany&quot;)</code></pre>
 ##   93  227</code></pre>
 </div>
 </div>
-<div id="homeless" class="section level3">
-<h3>Homeless</h3>
+<div id="homeless" class="section level2">
+<h2>Homeless</h2>
 <pre class="r"><code>dat$homeless &lt;- recode_factor(dat$`housing`,
                        &#39;0&#39; = &quot;Housed&quot;,
                        &#39;1&#39; = &quot;Homeless&quot;)</code></pre>
 </div>
-<div id="ivdu" class="section level3">
-<h3>IVDU</h3>
+<div id="ivdu" class="section level2">
+<h2>IVDU</h2>
 <pre class="r"><code>dat$ivdu &lt;- 0
 dat$ivdu[dat$opioid_used == 1] &lt;- 1
 dat$ivdu[dat$methamphetamine_used == 1] &lt;-1
@@ -792,21 +888,18 @@ dat$ivdu &lt;- factor(dat$ivdu,
                    ordered = TRUE)</code></pre>
 </div>
 </div>
-<div id="outcomes" class="section level2">
-<h2>Outcomes</h2>
-</div>
-<div id="covariates" class="section level2">
-<h2>Covariates</h2>
-<div id="age" class="section level3">
-<h3>Age</h3>
+<div id="covariates" class="section level1">
+<h1>Covariates</h1>
+<div id="age" class="section level2">
+<h2>Age</h2>
 <pre class="r"><code>dat$age &lt;- dat$age_at_admission
 
 summary(dat$age)</code></pre>
 <pre><code>##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA&#39;s 
 ##   19.00   31.50   39.00   40.91   49.00   74.00       1</code></pre>
 </div>
-<div id="gender" class="section level3">
-<h3>Gender</h3>
+<div id="gender" class="section level2">
+<h2>Gender</h2>
 <pre class="r"><code>dat$gender &lt;- recode_factor(dat$gender_m_or_f_lowercase,
                         &#39;m&#39; = 0,
                         &#39;f&#39; = 1)
@@ -816,10 +909,14 @@ dat$gender &lt;- factor(dat$gender,
                      ordered = TRUE)
 
 # gender variable for T1
-dat$genderM &lt;- ifelse(dat$gender == &quot;Male&quot;, 1, 0)</code></pre>
+dat$genderM &lt;- ifelse(dat$gender == &quot;Male&quot;, 1, 0)
+
+summary(dat$gender)</code></pre>
+<pre><code>##   Male Female   NA&#39;s 
+##    204    113      3</code></pre>
 </div>
-<div id="raceethnicity" class="section level3">
-<h3>Race/Ethnicity</h3>
+<div id="raceethnicity" class="section level2">
+<h2>Race/Ethnicity</h2>
 <pre class="r"><code>dat$race_eth &lt;- NA
 dat$race_eth[dat$race == &quot;white&quot;] &lt;-1
 dat$race_eth[dat$race == &quot;black&quot;] &lt;- 2
@@ -830,10 +927,14 @@ dat$race_eth[dat$race == &quot;other pacific islander&quot;] &lt;- 6
 dat$race_eth &lt;- factor(dat$race_eth,
                        levels = 1:6,
                        labels = c(&quot;White&quot;, &quot;Black&quot;, &quot;Hispanic White&quot;, &quot;AI/AN&quot;, &quot;Asian&quot;, &quot;Pacific Islander&quot;))
-# table(dat$race_eth, useNA = &quot;ifany&quot;)
-
-# create collapsed reace/eth for T1:
-dat$race_eth_t1 &lt;- 4
+table(dat$race_eth, useNA = &quot;ifany&quot;)</code></pre>
+<pre><code>## 
+##            White            Black   Hispanic White            AI/AN 
+##              290               16                4                4 
+##            Asian Pacific Islander             &lt;NA&gt; 
+##                1                1                4</code></pre>
+<p>Create collapsed reace/eth for T1:</p>
+<pre class="r"><code>dat$race_eth_t1 &lt;- 4
 dat$race_eth_t1[dat$race == &quot;white&quot;] &lt;-1
 dat$race_eth_t1[dat$race == &quot;black&quot;] &lt;- 2
 dat$race_eth_t1[dat$ethnicity == &quot;hispanic&quot;] &lt;-3
@@ -861,8 +962,8 @@ table(dat$race_eth, dat$race_eth_t1, useNA = &quot;ifany&quot;)</code></pre>
 ##   Pacific Islander                                          1
 ##   &lt;NA&gt;                                                      4</code></pre>
 </div>
-<div id="medicaid-eligibility" class="section level3">
-<h3>Medicaid Eligibility</h3>
+<div id="medicaid-eligibility" class="section level2">
+<h2>Medicaid Eligibility</h2>
 <pre class="r"><code>dat$medicaid &lt;- 0
 dat$medicaid[dat$insurance == &quot;medicaid&quot;] &lt;- 1
 dat$medicaid[is.na(dat$insurance)] &lt;- NA
@@ -882,8 +983,8 @@ table(dat$medicaid, dat$medicaid_t1, useNA = &quot;ifany&quot;)</code></pre>
 ##   Medicaid                 0 262
 ##   &lt;NA&gt;                     1   0</code></pre>
 </div>
-<div id="hiv-status" class="section level3">
-<h3>HIV Status</h3>
+<div id="hiv-status" class="section level2">
+<h2>HIV Status</h2>
 <pre class="r"><code>dat$hiv2 &lt;- factor(dat$hiv,
                   levels = 0:2,
                   labels = c(&quot;HIV-&quot;, &quot;HIV+&quot;, NA))
@@ -899,7 +1000,8 @@ table(dat$hiv2, dat$hiv_t1)</code></pre>
 ##   HIV+   0  13
 ##   &lt;NA&gt;   6   0</code></pre>
 <p>We can cross-tabulate this with info from the chart review</p>
-<pre class="r"><code>dat$HIV_Result[dat$HIV_Result == &quot;HIV-1 was not detected in this sample.  These results are most likely suggestive of either the absence of HIV viremia or the presence of low-level HIV viremia at or below the assays lower limit of detection.&quot;] &lt;- &quot;HIV-1 was not detected in this sample.&quot;
+<pre class="r"><code># reduces output to a readable length
+dat$HIV_Result[dat$HIV_Result == &quot;HIV-1 was not detected in this sample.  These results are most likely suggestive of either the absence of HIV viremia or the presence of low-level HIV viremia at or below the assays lower limit of detection.&quot;] &lt;- &quot;HIV-1 was not detected in this sample.&quot;
 
 table(dat$HIV_Result, useNA = &quot;ifany&quot;)</code></pre>
 <pre><code>## 
@@ -938,10 +1040,18 @@ table(dat$hiv3, dat$HIV_Result, useNA = &quot;ifany&quot;)</code></pre>
 ##   0     252    1    0
 ##   1       0    7    0
 ##   &lt;NA&gt;   49    5    6</code></pre>
-<p>Partial concordance.</p>
+<p>Partial concordance. This is possibly due to undetectable viral load during treatment.</p>
+<pre class="r"><code>hiv_discordance_subset &lt;- subset(dat, hiv2 == &quot;HIV+&quot; &amp; hiv3 == 0)
+hiv_discordance_subset$HIV_test</code></pre>
+<pre><code>## [1] &quot;HIV-QNT PCR&quot;</code></pre>
+<pre class="r"><code>hiv_discordance_subset$HIV_Result</code></pre>
+<pre><code>## [1] &quot;Undetected&quot;</code></pre>
+<pre class="r"><code># cleanup
+rm(hiv_discordance_subset)</code></pre>
+<p>This is consistent with the above hypothesis.</p>
 </div>
-<div id="allergies" class="section level3">
-<h3>Allergies</h3>
+<div id="allergies" class="section level2">
+<h2>Allergies</h2>
 <p>Yeast allergy is a contraindication to all available HBV vaccines, with the exception of PreHevbrio; while aminoglycoside allergy is a contraindication only to Twinrix. Of the reactions listed in the dataset, gentamycin is an aminoglycoside, with high crossreactivity to neomycin (the preservative in Twinrix), and the PCV-13 vaccine is also a yeast-derived vaccine, and could presumably cause cross reaction.</p>
 <pre class="r"><code>allergyW &lt;- pivot_wider(allergy,
                         id_cols = Patient_ID,
@@ -966,7 +1076,14 @@ allergyW$ag_allergy &lt;- ifelse(allergyW$GENTAMICIN == &quot;NULL&quot;, 0, 1)<
 <pre><code>## [1] 1</code></pre>
 <pre class="r"><code>sum(allergyW$yeast_allergy)</code></pre>
 <pre><code>## [1] 1</code></pre>
-<p>Only one of each. We can now join this data into the main dataset:</p>
+<p>Only one of each. We can now examine the reactions to each:</p>
+<pre class="r"><code>allergyW[allergyW$yeast_allergy == 1,]$`PNEUMOC 13-VAL CONJ-DIP CR(PF)`</code></pre>
+<pre><code>## [[1]]
+## [1] &quot;Pruritus&quot;</code></pre>
+<pre class="r"><code>allergyW[allergyW$ag_allergy == 1,]$GENTAMICIN</code></pre>
+<pre><code>## [[1]]
+## [1] &quot;Hives&quot; &quot;Hives&quot;</code></pre>
+<p>The patient with ‘allergy’ to the PCV13 vaccine experienced pruritis (a common, &gt;10%, reaction to this vaccine), whereas the patient with aminoglycoside allergy experienced hives. We can now join this data into the main dataset:</p>
 <pre class="r"><code>dat &lt;- merge(x = dat, 
              y = select(.data = allergyW,
                             Patient_ID, 
@@ -1036,8 +1153,8 @@ allergyW$ag_allergy &lt;- ifelse(allergyW$GENTAMICIN == &quot;NULL&quot;, 0, 1)<
 <pre class="r"><code># cleanup
 remove(allergyW, allergy)</code></pre>
 </div>
-<div id="fib-4-liver-biomarkers" class="section level3">
-<h3>FIB-4 &amp; liver biomarkers</h3>
+<div id="fib-4-liver-biomarkers" class="section level2">
+<h2>FIB-4 &amp; liver biomarkers</h2>
 <p>We can find the FIB-4 initial values of the relevant labs (AST, ALT, platelets)</p>
 <pre class="r"><code>dat$alt_f &lt;- lapply(dat$`ALT (SGPT)`, FUN = first) %&gt;% str_remove(pattern = &quot;[:symbol:]&quot;) %&gt;% as.numeric() </code></pre>
 <pre><code>## Warning in lapply(dat$`ALT (SGPT)`, FUN = first) %&gt;% str_remove(pattern =
@@ -1048,8 +1165,31 @@ remove(allergyW, allergy)</code></pre>
 <pre class="r"><code>dat$plt_f &lt;- lapply(dat$`PLATELET COUNT`, FUN = first) %&gt;% str_remove(pattern = &quot;[:symbol:]&quot;) %&gt;% as.numeric() </code></pre>
 <pre><code>## Warning in lapply(dat$`PLATELET COUNT`, FUN = first) %&gt;% str_remove(pattern =
 ## &quot;[:symbol:]&quot;) %&gt;% : NAs introduced by coercion</code></pre>
-<pre class="r"><code>dat$fib_4 &lt;- dat$age * dat$ast_f * (dat$alt_f)^-0.5 / dat$plt_f</code></pre>
+<pre class="r"><code>dat$fib_4 &lt;- dat$age * dat$ast_f * (dat$alt_f)^-0.5 / dat$plt_f
+
+summary(dat$fib_4)</code></pre>
+<pre><code>##     Min.  1st Qu.   Median     Mean  3rd Qu.     Max.     NA&#39;s 
+##   0.1597   0.5026   0.9273   2.4627   1.7177 117.8279       24</code></pre>
 </div>
+</div>
+<div id="outcome-variables" class="section level1">
+<h1>Outcome Variables</h1>
+<div id="hav-screening" class="section level2">
+<h2>HAV Screening</h2>
+</div>
+<div id="hav-vaccination" class="section level2">
+<h2>HAV Vaccination</h2>
+</div>
+<div id="hbv-screening" class="section level2">
+<h2>HBV Screening</h2>
+</div>
+<div id="hbv-vaccination" class="section level2">
+<h2>HBV Vaccination</h2>
+</div>
+<div id="hdv-screening" class="section level2">
+<h2>HDV Screening</h2>
+<pre class="r"><code>dat$hdv_screen &lt;- ifelse(is.na(dat$`HEP DELTA AB`),0,1)
+# table(dat$hdv_screen, dat$`HEP DELTA AB`)</code></pre>
 </div>
 </div>
 <div id="table-1" class="section level1">
@@ -1145,12 +1285,12 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
 <div id="t1" class="section level2">
 <h2>T1</h2>
 <pre class="r"><code>t1_merge</code></pre>
-<div id="rqaehxnvwt" style="overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<div id="ffhzjidamg" style="overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
 <style>html {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', 'Fira Sans', 'Droid Sans', Arial, sans-serif;
 }
 
-#rqaehxnvwt .gt_table {
+#ffhzjidamg .gt_table {
   display: table;
   border-collapse: collapse;
   margin-left: auto;
@@ -1175,7 +1315,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   border-left-color: #D3D3D3;
 }
 
-#rqaehxnvwt .gt_heading {
+#ffhzjidamg .gt_heading {
   background-color: #FFFFFF;
   text-align: center;
   border-bottom-color: #FFFFFF;
@@ -1187,7 +1327,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   border-right-color: #D3D3D3;
 }
 
-#rqaehxnvwt .gt_title {
+#ffhzjidamg .gt_title {
   color: #333333;
   font-size: 125%;
   font-weight: initial;
@@ -1199,7 +1339,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   border-bottom-width: 0;
 }
 
-#rqaehxnvwt .gt_subtitle {
+#ffhzjidamg .gt_subtitle {
   color: #333333;
   font-size: 85%;
   font-weight: initial;
@@ -1211,13 +1351,13 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   border-top-width: 0;
 }
 
-#rqaehxnvwt .gt_bottom_border {
+#ffhzjidamg .gt_bottom_border {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
 }
 
-#rqaehxnvwt .gt_col_headings {
+#ffhzjidamg .gt_col_headings {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -1232,7 +1372,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   border-right-color: #D3D3D3;
 }
 
-#rqaehxnvwt .gt_col_heading {
+#ffhzjidamg .gt_col_heading {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -1252,7 +1392,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   overflow-x: hidden;
 }
 
-#rqaehxnvwt .gt_column_spanner_outer {
+#ffhzjidamg .gt_column_spanner_outer {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -1264,15 +1404,15 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   padding-right: 4px;
 }
 
-#rqaehxnvwt .gt_column_spanner_outer:first-child {
+#ffhzjidamg .gt_column_spanner_outer:first-child {
   padding-left: 0;
 }
 
-#rqaehxnvwt .gt_column_spanner_outer:last-child {
+#ffhzjidamg .gt_column_spanner_outer:last-child {
   padding-right: 0;
 }
 
-#rqaehxnvwt .gt_column_spanner {
+#ffhzjidamg .gt_column_spanner {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
@@ -1284,7 +1424,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   width: 100%;
 }
 
-#rqaehxnvwt .gt_group_heading {
+#ffhzjidamg .gt_group_heading {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1309,7 +1449,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   vertical-align: middle;
 }
 
-#rqaehxnvwt .gt_empty_group_heading {
+#ffhzjidamg .gt_empty_group_heading {
   padding: 0.5px;
   color: #333333;
   background-color: #FFFFFF;
@@ -1324,15 +1464,15 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   vertical-align: middle;
 }
 
-#rqaehxnvwt .gt_from_md > :first-child {
+#ffhzjidamg .gt_from_md > :first-child {
   margin-top: 0;
 }
 
-#rqaehxnvwt .gt_from_md > :last-child {
+#ffhzjidamg .gt_from_md > :last-child {
   margin-bottom: 0;
 }
 
-#rqaehxnvwt .gt_row {
+#ffhzjidamg .gt_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1351,7 +1491,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   overflow-x: hidden;
 }
 
-#rqaehxnvwt .gt_stub {
+#ffhzjidamg .gt_stub {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -1364,7 +1504,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   padding-right: 5px;
 }
 
-#rqaehxnvwt .gt_stub_row_group {
+#ffhzjidamg .gt_stub_row_group {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -1378,11 +1518,11 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   vertical-align: top;
 }
 
-#rqaehxnvwt .gt_row_group_first td {
+#ffhzjidamg .gt_row_group_first td {
   border-top-width: 2px;
 }
 
-#rqaehxnvwt .gt_summary_row {
+#ffhzjidamg .gt_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -1392,16 +1532,16 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   padding-right: 5px;
 }
 
-#rqaehxnvwt .gt_first_summary_row {
+#ffhzjidamg .gt_first_summary_row {
   border-top-style: solid;
   border-top-color: #D3D3D3;
 }
 
-#rqaehxnvwt .gt_first_summary_row.thick {
+#ffhzjidamg .gt_first_summary_row.thick {
   border-top-width: 2px;
 }
 
-#rqaehxnvwt .gt_last_summary_row {
+#ffhzjidamg .gt_last_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1411,7 +1551,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   border-bottom-color: #D3D3D3;
 }
 
-#rqaehxnvwt .gt_grand_summary_row {
+#ffhzjidamg .gt_grand_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -1421,7 +1561,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   padding-right: 5px;
 }
 
-#rqaehxnvwt .gt_first_grand_summary_row {
+#ffhzjidamg .gt_first_grand_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1431,11 +1571,11 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   border-top-color: #D3D3D3;
 }
 
-#rqaehxnvwt .gt_striped {
+#ffhzjidamg .gt_striped {
   background-color: rgba(128, 128, 128, 0.05);
 }
 
-#rqaehxnvwt .gt_table_body {
+#ffhzjidamg .gt_table_body {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -1444,7 +1584,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   border-bottom-color: #D3D3D3;
 }
 
-#rqaehxnvwt .gt_footnotes {
+#ffhzjidamg .gt_footnotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -1458,7 +1598,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   border-right-color: #D3D3D3;
 }
 
-#rqaehxnvwt .gt_footnote {
+#ffhzjidamg .gt_footnote {
   margin: 0px;
   font-size: 90%;
   padding-left: 4px;
@@ -1467,7 +1607,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   padding-right: 5px;
 }
 
-#rqaehxnvwt .gt_sourcenotes {
+#ffhzjidamg .gt_sourcenotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -1481,7 +1621,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   border-right-color: #D3D3D3;
 }
 
-#rqaehxnvwt .gt_sourcenote {
+#ffhzjidamg .gt_sourcenote {
   font-size: 90%;
   padding-top: 4px;
   padding-bottom: 4px;
@@ -1489,36 +1629,36 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   padding-right: 5px;
 }
 
-#rqaehxnvwt .gt_left {
+#ffhzjidamg .gt_left {
   text-align: left;
 }
 
-#rqaehxnvwt .gt_center {
+#ffhzjidamg .gt_center {
   text-align: center;
 }
 
-#rqaehxnvwt .gt_right {
+#ffhzjidamg .gt_right {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
-#rqaehxnvwt .gt_font_normal {
+#ffhzjidamg .gt_font_normal {
   font-weight: normal;
 }
 
-#rqaehxnvwt .gt_font_bold {
+#ffhzjidamg .gt_font_bold {
   font-weight: bold;
 }
 
-#rqaehxnvwt .gt_font_italic {
+#ffhzjidamg .gt_font_italic {
   font-style: italic;
 }
 
-#rqaehxnvwt .gt_super {
+#ffhzjidamg .gt_super {
   font-size: 65%;
 }
 
-#rqaehxnvwt .gt_two_val_uncert {
+#ffhzjidamg .gt_two_val_uncert {
   display: inline-block;
   line-height: 1em;
   text-align: right;
@@ -1527,31 +1667,31 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   margin-left: 0.1em;
 }
 
-#rqaehxnvwt .gt_footnote_marks {
+#ffhzjidamg .gt_footnote_marks {
   font-style: italic;
   font-weight: normal;
   font-size: 75%;
   vertical-align: 0.4em;
 }
 
-#rqaehxnvwt .gt_asterisk {
+#ffhzjidamg .gt_asterisk {
   font-size: 100%;
   vertical-align: 0;
 }
 
-#rqaehxnvwt .gt_slash_mark {
+#ffhzjidamg .gt_slash_mark {
   font-size: 0.7em;
   line-height: 0.7em;
   vertical-align: 0.15em;
 }
 
-#rqaehxnvwt .gt_fraction_numerator {
+#ffhzjidamg .gt_fraction_numerator {
   font-size: 0.6em;
   line-height: 0.6em;
   vertical-align: 0.45em;
 }
 
-#rqaehxnvwt .gt_fraction_denominator {
+#ffhzjidamg .gt_fraction_denominator {
   font-size: 0.6em;
   line-height: 0.6em;
   vertical-align: -0.05em;
