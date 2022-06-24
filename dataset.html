@@ -1575,14 +1575,19 @@ studies have looked at FIB-4</li>
 <ul>
 <li>lab costs of HBV E antigen?</li>
 <li>Values of HBV DNA to determine HBV status?</li>
-<li>Definitions of eligibility for the vaccines?</li>
+<li>Definitions of eligibility for the vaccines?
+<ul>
 <li>HBV: No prior immunity, no prior documentation of vaccination, no
-prior</li>
-<li>HAV: no prior immunity?</li>
+prior documentation of resolved HBV , no active hepatitis</li>
+<li>HAV: no prior immunity? Look at ‘HAV vaccination status’ and ‘HAV
+IgG screening recommended’ variables in the main dataset</li>
+</ul></li>
 <li>Confirm Heplisav-B is major HBV vaccine product used?</li>
 <li>Possible to determine order of tests?</li>
 <li>Chart review variable for prior HBV exposure? I.e. is there a HBV
 status prior to admission variable I’m missing somewhere</li>
+<li>look in ‘HBV screening recommended’ variable from the main dataset;
+validate against this dataset</li>
 <li>Source of HCC screening data</li>
 <li>was there ever a quantitative HbSAg test? the specification of a
 qualitative test in ‘HEP B SURFACE AB QUAL’ suggests there might have
@@ -1600,8 +1605,17 @@ vaccine?“,”left AMA”, etc</li>
 <li>HBV E antigen/antibody</li>
 <li>HDV</li>
 <li>Looking at just Surface AB alone</li>
+<li>HBV core antibody/antigen without HBV surface antigen</li>
 </ul></li>
 <li>other exploratory labs</li>
+</ul></li>
+<li>For next week
+<ul>
+<li>Look at retesting for immunity for HBV 6 months after the series; no
+need to test for HAV completeness</li>
+<li>validate HBV variable against chart review HBV prior to
+admission</li>
+<li>Look at completion rates before Heplisav-B vs after</li>
 </ul></li>
 </ul>
 </div>
@@ -2468,12 +2482,12 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
 <div id="t1" class="section level2">
 <h2>T1</h2>
 <pre class="r"><code>t1_merge</code></pre>
-<div id="xpfmygqmmb" style="overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<div id="xocbbmjmnl" style="overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
 <style>html {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', 'Fira Sans', 'Droid Sans', Arial, sans-serif;
 }
 
-#xpfmygqmmb .gt_table {
+#xocbbmjmnl .gt_table {
   display: table;
   border-collapse: collapse;
   margin-left: auto;
@@ -2498,7 +2512,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   border-left-color: #D3D3D3;
 }
 
-#xpfmygqmmb .gt_heading {
+#xocbbmjmnl .gt_heading {
   background-color: #FFFFFF;
   text-align: center;
   border-bottom-color: #FFFFFF;
@@ -2510,7 +2524,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   border-right-color: #D3D3D3;
 }
 
-#xpfmygqmmb .gt_title {
+#xocbbmjmnl .gt_title {
   color: #333333;
   font-size: 125%;
   font-weight: initial;
@@ -2522,7 +2536,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   border-bottom-width: 0;
 }
 
-#xpfmygqmmb .gt_subtitle {
+#xocbbmjmnl .gt_subtitle {
   color: #333333;
   font-size: 85%;
   font-weight: initial;
@@ -2534,13 +2548,13 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   border-top-width: 0;
 }
 
-#xpfmygqmmb .gt_bottom_border {
+#xocbbmjmnl .gt_bottom_border {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
 }
 
-#xpfmygqmmb .gt_col_headings {
+#xocbbmjmnl .gt_col_headings {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -2555,7 +2569,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   border-right-color: #D3D3D3;
 }
 
-#xpfmygqmmb .gt_col_heading {
+#xocbbmjmnl .gt_col_heading {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -2575,7 +2589,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   overflow-x: hidden;
 }
 
-#xpfmygqmmb .gt_column_spanner_outer {
+#xocbbmjmnl .gt_column_spanner_outer {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -2587,15 +2601,15 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   padding-right: 4px;
 }
 
-#xpfmygqmmb .gt_column_spanner_outer:first-child {
+#xocbbmjmnl .gt_column_spanner_outer:first-child {
   padding-left: 0;
 }
 
-#xpfmygqmmb .gt_column_spanner_outer:last-child {
+#xocbbmjmnl .gt_column_spanner_outer:last-child {
   padding-right: 0;
 }
 
-#xpfmygqmmb .gt_column_spanner {
+#xocbbmjmnl .gt_column_spanner {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
@@ -2607,7 +2621,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   width: 100%;
 }
 
-#xpfmygqmmb .gt_group_heading {
+#xocbbmjmnl .gt_group_heading {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -2632,7 +2646,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   vertical-align: middle;
 }
 
-#xpfmygqmmb .gt_empty_group_heading {
+#xocbbmjmnl .gt_empty_group_heading {
   padding: 0.5px;
   color: #333333;
   background-color: #FFFFFF;
@@ -2647,15 +2661,15 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   vertical-align: middle;
 }
 
-#xpfmygqmmb .gt_from_md > :first-child {
+#xocbbmjmnl .gt_from_md > :first-child {
   margin-top: 0;
 }
 
-#xpfmygqmmb .gt_from_md > :last-child {
+#xocbbmjmnl .gt_from_md > :last-child {
   margin-bottom: 0;
 }
 
-#xpfmygqmmb .gt_row {
+#xocbbmjmnl .gt_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -2674,7 +2688,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   overflow-x: hidden;
 }
 
-#xpfmygqmmb .gt_stub {
+#xocbbmjmnl .gt_stub {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -2687,7 +2701,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   padding-right: 5px;
 }
 
-#xpfmygqmmb .gt_stub_row_group {
+#xocbbmjmnl .gt_stub_row_group {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -2701,11 +2715,11 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   vertical-align: top;
 }
 
-#xpfmygqmmb .gt_row_group_first td {
+#xocbbmjmnl .gt_row_group_first td {
   border-top-width: 2px;
 }
 
-#xpfmygqmmb .gt_summary_row {
+#xocbbmjmnl .gt_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -2715,16 +2729,16 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   padding-right: 5px;
 }
 
-#xpfmygqmmb .gt_first_summary_row {
+#xocbbmjmnl .gt_first_summary_row {
   border-top-style: solid;
   border-top-color: #D3D3D3;
 }
 
-#xpfmygqmmb .gt_first_summary_row.thick {
+#xocbbmjmnl .gt_first_summary_row.thick {
   border-top-width: 2px;
 }
 
-#xpfmygqmmb .gt_last_summary_row {
+#xocbbmjmnl .gt_last_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -2734,7 +2748,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   border-bottom-color: #D3D3D3;
 }
 
-#xpfmygqmmb .gt_grand_summary_row {
+#xocbbmjmnl .gt_grand_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -2744,7 +2758,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   padding-right: 5px;
 }
 
-#xpfmygqmmb .gt_first_grand_summary_row {
+#xocbbmjmnl .gt_first_grand_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -2754,11 +2768,11 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   border-top-color: #D3D3D3;
 }
 
-#xpfmygqmmb .gt_striped {
+#xocbbmjmnl .gt_striped {
   background-color: rgba(128, 128, 128, 0.05);
 }
 
-#xpfmygqmmb .gt_table_body {
+#xocbbmjmnl .gt_table_body {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -2767,7 +2781,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   border-bottom-color: #D3D3D3;
 }
 
-#xpfmygqmmb .gt_footnotes {
+#xocbbmjmnl .gt_footnotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -2781,7 +2795,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   border-right-color: #D3D3D3;
 }
 
-#xpfmygqmmb .gt_footnote {
+#xocbbmjmnl .gt_footnote {
   margin: 0px;
   font-size: 90%;
   padding-left: 4px;
@@ -2790,7 +2804,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   padding-right: 5px;
 }
 
-#xpfmygqmmb .gt_sourcenotes {
+#xocbbmjmnl .gt_sourcenotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -2804,7 +2818,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   border-right-color: #D3D3D3;
 }
 
-#xpfmygqmmb .gt_sourcenote {
+#xocbbmjmnl .gt_sourcenote {
   font-size: 90%;
   padding-top: 4px;
   padding-bottom: 4px;
@@ -2812,36 +2826,36 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   padding-right: 5px;
 }
 
-#xpfmygqmmb .gt_left {
+#xocbbmjmnl .gt_left {
   text-align: left;
 }
 
-#xpfmygqmmb .gt_center {
+#xocbbmjmnl .gt_center {
   text-align: center;
 }
 
-#xpfmygqmmb .gt_right {
+#xocbbmjmnl .gt_right {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
-#xpfmygqmmb .gt_font_normal {
+#xocbbmjmnl .gt_font_normal {
   font-weight: normal;
 }
 
-#xpfmygqmmb .gt_font_bold {
+#xocbbmjmnl .gt_font_bold {
   font-weight: bold;
 }
 
-#xpfmygqmmb .gt_font_italic {
+#xocbbmjmnl .gt_font_italic {
   font-style: italic;
 }
 
-#xpfmygqmmb .gt_super {
+#xocbbmjmnl .gt_super {
   font-size: 65%;
 }
 
-#xpfmygqmmb .gt_two_val_uncert {
+#xocbbmjmnl .gt_two_val_uncert {
   display: inline-block;
   line-height: 1em;
   text-align: right;
@@ -2850,31 +2864,31 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   margin-left: 0.1em;
 }
 
-#xpfmygqmmb .gt_footnote_marks {
+#xocbbmjmnl .gt_footnote_marks {
   font-style: italic;
   font-weight: normal;
   font-size: 75%;
   vertical-align: 0.4em;
 }
 
-#xpfmygqmmb .gt_asterisk {
+#xocbbmjmnl .gt_asterisk {
   font-size: 100%;
   vertical-align: 0;
 }
 
-#xpfmygqmmb .gt_slash_mark {
+#xocbbmjmnl .gt_slash_mark {
   font-size: 0.7em;
   line-height: 0.7em;
   vertical-align: 0.15em;
 }
 
-#xpfmygqmmb .gt_fraction_numerator {
+#xocbbmjmnl .gt_fraction_numerator {
   font-size: 0.6em;
   line-height: 0.6em;
   vertical-align: 0.45em;
 }
 
-#xpfmygqmmb .gt_fraction_denominator {
+#xocbbmjmnl .gt_fraction_denominator {
   font-size: 0.6em;
   line-height: 0.6em;
   vertical-align: -0.05em;
@@ -3033,7 +3047,11 @@ table(dat$hbv_eag)</code></pre>
 ##   0 305   9
 ##   1   3   3</code></pre>
 <p>Of the 12 patients for whom the E antigen was tested, only 3 had
-detectable HBV DNA or HBV surface antigen;</p>
+detectable HBV DNA or HBV surface antigen; unknown cost</p>
+</div>
+<div id="hbv-core-ab" class="section level3">
+<h3>HBV Core Ab</h3>
+<pre class="r"><code>dat$hbv_cab &lt;- ifelse(!is.na(dat$`HEP B COR AB IGM`) | !is.na(dat$`HEP B CORE AB`),1,0)</code></pre>
 </div>
 </div>
 <div id="hbv-vaccine-utilization-pattern" class="section level2">
