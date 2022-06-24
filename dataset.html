@@ -1570,16 +1570,21 @@ total measurements</li>
 levels ≥ 3.0 mg/dL)</li>
 <li>double check on the FIB-4 timeframe; and double check how other
 studies have looked at FIB-4</li>
+<li>cleanup null to na conversions</li>
 </ul></li>
 <li>Questions
 <ul>
+<li>Values of HBV DNA to determine HBV status?</li>
+<li>Definitions of eligibility for the vaccines?</li>
+<li>Confirm Heplisav-B is major HBV vaccine product used?</li>
+<li>Possible to determine order of tests?</li>
+<li>Chart review variable for prior HBV exposure?</li>
 <li>Source of HCC screening data</li>
 <li>was there ever a quantitative HbSAg test? the specification of a
 qualitative test in ‘HEP B SURFACE AB QUAL’ suggests there might have
 been a need for distinction at one time</li>
 <li>should anything be done with the comments? e.g. ’declined HBV
 vaccine?“,”left AMA”, etc</li>
-<li>cleanup null to na conversions</li>
 </ul></li>
 <li>For next week:
 <ul>
@@ -1603,6 +1608,8 @@ vaccine?“,”left AMA”, etc</li>
 <p>Import the extra data</p>
 <pre class="r"><code>allergy &lt;- read.xlsx(xlsxFile = &quot;data/HAV_HBV data_pull_de_ID.xlsx&quot;,
                       sheet = &quot;Allergies&quot;)
+# vaccines administered at any site
+# NB Vaccines without an administration date were ordered but not given
 vaccine &lt;- read.xlsx(xlsxFile = &quot;data/HAV_HBV data_pull_de_ID.xlsx&quot;,
                       sheet = &quot;Any_vaccine&quot;,
                       detectDates = TRUE)
@@ -1612,7 +1619,7 @@ hep_tests &lt;- read.xlsx(xlsxFile = &quot;data/HAV_HBV data_pull_de_ID.xlsx&quo
 labs &lt;- read.xlsx(xlsxFile = &quot;data/HAV_HBV data_pull_de_ID.xlsx&quot;,
                       sheet = &quot;other_labs&quot;)
 
-#From new data pull
+#From new data pull, includes day that the lab was taken
 labs2 &lt;- read.xlsx(xlsxFile = &quot;data/Matt&#39;s data_de_ID_6_3_22.xlsx&quot;,
                       sheet = &quot;CBC_CMP_labs&quot;)
 vaccine2 &lt;- read.xlsx(xlsxFile = &quot;data/Matt&#39;s data_de_ID_6_3_22.xlsx&quot;,
@@ -2254,6 +2261,14 @@ platelets)</p>
 summary(dat$fib_4)</code></pre>
 <pre><code>##     Min.  1st Qu.   Median     Mean  3rd Qu.     Max.     NA&#39;s 
 ##   0.1597   0.5026   0.9273   2.4627   1.7177 117.8279       24</code></pre>
+<p>For HAV we want to look at the case criteria for HAV; including total
+bilitubin &gt; 3.0 mg/dL or ALT &gt; 200 IU/L (<a href="https://www.cdc.gov/hepatitis/hav/havfaq.htm" class="uri">https://www.cdc.gov/hepatitis/hav/havfaq.htm</a>).</p>
+<pre class="r"><code>dat$bili_3 &lt;- ifelse(lapply(dat$`BILIRUBIN TOTAL`, first) &gt;= 3.0, 1,0)</code></pre>
+<pre><code>## Warning in ifelse(lapply(dat$`BILIRUBIN TOTAL`, first) &gt;= 3, 1, 0): NAs
+## introduced by coercion</code></pre>
+<pre class="r"><code>dat$ALT_200 &lt;- ifelse(lapply(dat$`ALT (SGPT)`, first) &gt; 200, 1,0)</code></pre>
+<pre><code>## Warning in ifelse(lapply(dat$`ALT (SGPT)`, first) &gt; 200, 1, 0): NAs introduced
+## by coercion</code></pre>
 </div>
 </div>
 <div id="outcome-variables" class="section level1">
@@ -2286,12 +2301,11 @@ table(dat$hav_screen, is.na(dat$`HEPATITIS A AB TOTAL`))</code></pre>
 </div>
 <div id="hav-vaccination" class="section level2">
 <h2>HAV Vaccination</h2>
-<p>NB Vaccines without an administration date were ordered but not
-given</p>
-<pre class="r"><code># replacing NAs with 0 in administration date
-# vaccine$Administration_Date__Sorting_[is.na(vaccine$Administration_Date__Sorting_, origin = “1964-10-22”)] &lt;- 0
-# vaccine$Administration_Date__Sorting_[as.date(vaccine$Administration_Date__Sorting_, origin = “1964-10-22”) &gt;= 2000] &lt;- 0
-# vaccine[is.na(vaccine)] &lt;- 0</code></pre>
+<pre class="r"><code>dat$hav_vaccine &lt;- ifelse(is.na(dat$Havrix), 0, 1)
+table(dat$hav_vaccine)</code></pre>
+<pre><code>## 
+##   0   1 
+## 303  17</code></pre>
 </div>
 <div id="hbv-screening" class="section level2">
 <h2>HBV Screening</h2>
@@ -2329,11 +2343,32 @@ table(dat$hbv_screen_any)</code></pre>
 </div>
 <div id="hbv-vaccination" class="section level2">
 <h2>HBV Vaccination</h2>
+<pre class="r"><code>dat$hbv_vaccine &lt;- ifelse(is.na(dat$EngerixB) &amp; is.na(dat$HeplisavB), 0, 1)
+table(dat$hbv_vaccine)</code></pre>
+<pre><code>## 
+##   0   1 
+## 289  31</code></pre>
 </div>
 <div id="hdv-screening" class="section level2">
 <h2>HDV Screening</h2>
 <pre class="r"><code>dat$hdv_screen &lt;- ifelse(is.na(dat$`HEP DELTA AB`),0,1)
-# table(dat$hdv_screen, dat$`HEP DELTA AB`)</code></pre>
+table(dat$hdv_screen)</code></pre>
+<pre><code>## 
+##   0   1 
+## 319   1</code></pre>
+</div>
+</div>
+<div id="misc-variables" class="section level1">
+<h1>Misc Variables</h1>
+<div id="hbv-status" class="section level2">
+<h2>HBV Status</h2>
+<p>defined as positive if HBV DNA or HBSag is detected</p>
+<pre class="r"><code>dat$hbv_status &lt;- ifelse(dat$`HEP B DNA QUANT IU, VALUE` &gt; 10 | dat$`HEP B DNA QUAL` == &quot;Detected&quot; | dat$`HEP B DNA QUANT IU, VALUE` &gt; 10 | lapply(dat$`HEP B SURFACE AG`, first) == &quot;Detected&quot; | lapply(dat$`HEPATITIS B SURFACE AG, SERUM`, first) == &quot;Positive&quot; ,1,0)
+dat$hbv_status[is.na(dat$hbv_status)] &lt;- 0
+table(dat$hbv_status)</code></pre>
+<pre><code>## 
+##   0   1 
+## 314   6</code></pre>
 </div>
 </div>
 <div id="table-1" class="section level1">
@@ -2429,12 +2464,12 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
 <div id="t1" class="section level2">
 <h2>T1</h2>
 <pre class="r"><code>t1_merge</code></pre>
-<div id="hmygziikji" style="overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<div id="xtfohqygni" style="overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
 <style>html {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', 'Fira Sans', 'Droid Sans', Arial, sans-serif;
 }
 
-#hmygziikji .gt_table {
+#xtfohqygni .gt_table {
   display: table;
   border-collapse: collapse;
   margin-left: auto;
@@ -2459,7 +2494,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   border-left-color: #D3D3D3;
 }
 
-#hmygziikji .gt_heading {
+#xtfohqygni .gt_heading {
   background-color: #FFFFFF;
   text-align: center;
   border-bottom-color: #FFFFFF;
@@ -2471,7 +2506,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   border-right-color: #D3D3D3;
 }
 
-#hmygziikji .gt_title {
+#xtfohqygni .gt_title {
   color: #333333;
   font-size: 125%;
   font-weight: initial;
@@ -2483,7 +2518,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   border-bottom-width: 0;
 }
 
-#hmygziikji .gt_subtitle {
+#xtfohqygni .gt_subtitle {
   color: #333333;
   font-size: 85%;
   font-weight: initial;
@@ -2495,13 +2530,13 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   border-top-width: 0;
 }
 
-#hmygziikji .gt_bottom_border {
+#xtfohqygni .gt_bottom_border {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
 }
 
-#hmygziikji .gt_col_headings {
+#xtfohqygni .gt_col_headings {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -2516,7 +2551,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   border-right-color: #D3D3D3;
 }
 
-#hmygziikji .gt_col_heading {
+#xtfohqygni .gt_col_heading {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -2536,7 +2571,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   overflow-x: hidden;
 }
 
-#hmygziikji .gt_column_spanner_outer {
+#xtfohqygni .gt_column_spanner_outer {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -2548,15 +2583,15 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   padding-right: 4px;
 }
 
-#hmygziikji .gt_column_spanner_outer:first-child {
+#xtfohqygni .gt_column_spanner_outer:first-child {
   padding-left: 0;
 }
 
-#hmygziikji .gt_column_spanner_outer:last-child {
+#xtfohqygni .gt_column_spanner_outer:last-child {
   padding-right: 0;
 }
 
-#hmygziikji .gt_column_spanner {
+#xtfohqygni .gt_column_spanner {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
@@ -2568,7 +2603,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   width: 100%;
 }
 
-#hmygziikji .gt_group_heading {
+#xtfohqygni .gt_group_heading {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -2593,7 +2628,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   vertical-align: middle;
 }
 
-#hmygziikji .gt_empty_group_heading {
+#xtfohqygni .gt_empty_group_heading {
   padding: 0.5px;
   color: #333333;
   background-color: #FFFFFF;
@@ -2608,15 +2643,15 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   vertical-align: middle;
 }
 
-#hmygziikji .gt_from_md > :first-child {
+#xtfohqygni .gt_from_md > :first-child {
   margin-top: 0;
 }
 
-#hmygziikji .gt_from_md > :last-child {
+#xtfohqygni .gt_from_md > :last-child {
   margin-bottom: 0;
 }
 
-#hmygziikji .gt_row {
+#xtfohqygni .gt_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -2635,7 +2670,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   overflow-x: hidden;
 }
 
-#hmygziikji .gt_stub {
+#xtfohqygni .gt_stub {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -2648,7 +2683,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   padding-right: 5px;
 }
 
-#hmygziikji .gt_stub_row_group {
+#xtfohqygni .gt_stub_row_group {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -2662,11 +2697,11 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   vertical-align: top;
 }
 
-#hmygziikji .gt_row_group_first td {
+#xtfohqygni .gt_row_group_first td {
   border-top-width: 2px;
 }
 
-#hmygziikji .gt_summary_row {
+#xtfohqygni .gt_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -2676,16 +2711,16 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   padding-right: 5px;
 }
 
-#hmygziikji .gt_first_summary_row {
+#xtfohqygni .gt_first_summary_row {
   border-top-style: solid;
   border-top-color: #D3D3D3;
 }
 
-#hmygziikji .gt_first_summary_row.thick {
+#xtfohqygni .gt_first_summary_row.thick {
   border-top-width: 2px;
 }
 
-#hmygziikji .gt_last_summary_row {
+#xtfohqygni .gt_last_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -2695,7 +2730,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   border-bottom-color: #D3D3D3;
 }
 
-#hmygziikji .gt_grand_summary_row {
+#xtfohqygni .gt_grand_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -2705,7 +2740,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   padding-right: 5px;
 }
 
-#hmygziikji .gt_first_grand_summary_row {
+#xtfohqygni .gt_first_grand_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -2715,11 +2750,11 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   border-top-color: #D3D3D3;
 }
 
-#hmygziikji .gt_striped {
+#xtfohqygni .gt_striped {
   background-color: rgba(128, 128, 128, 0.05);
 }
 
-#hmygziikji .gt_table_body {
+#xtfohqygni .gt_table_body {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -2728,7 +2763,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   border-bottom-color: #D3D3D3;
 }
 
-#hmygziikji .gt_footnotes {
+#xtfohqygni .gt_footnotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -2742,7 +2777,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   border-right-color: #D3D3D3;
 }
 
-#hmygziikji .gt_footnote {
+#xtfohqygni .gt_footnote {
   margin: 0px;
   font-size: 90%;
   padding-left: 4px;
@@ -2751,7 +2786,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   padding-right: 5px;
 }
 
-#hmygziikji .gt_sourcenotes {
+#xtfohqygni .gt_sourcenotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -2765,7 +2800,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   border-right-color: #D3D3D3;
 }
 
-#hmygziikji .gt_sourcenote {
+#xtfohqygni .gt_sourcenote {
   font-size: 90%;
   padding-top: 4px;
   padding-bottom: 4px;
@@ -2773,36 +2808,36 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   padding-right: 5px;
 }
 
-#hmygziikji .gt_left {
+#xtfohqygni .gt_left {
   text-align: left;
 }
 
-#hmygziikji .gt_center {
+#xtfohqygni .gt_center {
   text-align: center;
 }
 
-#hmygziikji .gt_right {
+#xtfohqygni .gt_right {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
-#hmygziikji .gt_font_normal {
+#xtfohqygni .gt_font_normal {
   font-weight: normal;
 }
 
-#hmygziikji .gt_font_bold {
+#xtfohqygni .gt_font_bold {
   font-weight: bold;
 }
 
-#hmygziikji .gt_font_italic {
+#xtfohqygni .gt_font_italic {
   font-style: italic;
 }
 
-#hmygziikji .gt_super {
+#xtfohqygni .gt_super {
   font-size: 65%;
 }
 
-#hmygziikji .gt_two_val_uncert {
+#xtfohqygni .gt_two_val_uncert {
   display: inline-block;
   line-height: 1em;
   text-align: right;
@@ -2811,31 +2846,31 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   margin-left: 0.1em;
 }
 
-#hmygziikji .gt_footnote_marks {
+#xtfohqygni .gt_footnote_marks {
   font-style: italic;
   font-weight: normal;
   font-size: 75%;
   vertical-align: 0.4em;
 }
 
-#hmygziikji .gt_asterisk {
+#xtfohqygni .gt_asterisk {
   font-size: 100%;
   vertical-align: 0;
 }
 
-#hmygziikji .gt_slash_mark {
+#xtfohqygni .gt_slash_mark {
   font-size: 0.7em;
   line-height: 0.7em;
   vertical-align: 0.15em;
 }
 
-#hmygziikji .gt_fraction_numerator {
+#xtfohqygni .gt_fraction_numerator {
   font-size: 0.6em;
   line-height: 0.6em;
   vertical-align: 0.45em;
 }
 
-#hmygziikji .gt_fraction_denominator {
+#xtfohqygni .gt_fraction_denominator {
   font-size: 0.6em;
   line-height: 0.6em;
   vertical-align: -0.05em;
@@ -2960,6 +2995,34 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
 </div>
 <div id="misc-calculations" class="section level1">
 <h1>Misc Calculations</h1>
+<div id="cost-of-tests" class="section level2">
+<h2>Cost of tests</h2>
+<div id="hav-igm" class="section level3">
+<h3>HAV IgM</h3>
+<p>HAV IGM can be considered indicated if either of the lab criteria are
+met (total bilitubin &gt; 3.0 mg/dL or ALT &gt; 200 IU/L):</p>
+<pre class="r"><code>dat$hav_IgM_indicated &lt;- ifelse(dat$bili_3 | dat$ALT_200,1,0)
+table(dat$hav_IgM_indicated)</code></pre>
+<pre><code>## 
+##   0   1 
+## 276  19</code></pre>
+<pre class="r"><code>table(dat$hav_IgM_indicated, !is.na(dat$`HEPATITIS A AB, IGM`))</code></pre>
+<pre><code>##    
+##     FALSE TRUE
+##   0   240   36
+##   1    14    5</code></pre>
+<p>36 HAV IgM tests ordered without lab value indication: 36*$90 =
+$3240.</p>
+</div>
+<div id="hbv-dna-hbv-e-antigenantibody" class="section level3">
+<h3>HBV DNA &amp; HBV E antigen/antibody</h3>
+<p>Difficult to determine order of tests to determine if test is
+appropriate or not</p>
+</div>
+<div id="section" class="section level3">
+<h3></h3>
+</div>
+</div>
 <div id="hbv-vaccine-utilization-pattern" class="section level2">
 <h2>HBV Vaccine Utilization pattern</h2>
 <p>Tabulating vaccines administered in-hospital:</p>
@@ -2979,6 +3042,12 @@ administered to 14 patients * Havrix was administered to 17 patients
 </div>
 <div id="proportion-of-pwhbv-screened-for-hdv" class="section level2">
 <h2>Proportion of PWHBV screened for HDV</h2>
+<pre class="r"><code>table(dat$hbv_status, dat$hdv_screen)</code></pre>
+<pre><code>##    
+##       0   1
+##   0 314   0
+##   1   5   1</code></pre>
+<p>One in six were screened for HDV.</p>
 </div>
 <div id="proportion-of-returning-vaccinated-patients-receiving-additiona-hbv-vaccine-dose" class="section level2">
 <h2>Proportion of returning vaccinated patients receiving additiona HBV
@@ -2990,10 +3059,14 @@ series</h2>
 </div>
 <div id="use-of-accelerated-dosing" class="section level2">
 <h2>Use of Accelerated Dosing</h2>
+<p>No accelerated dosing observed.</p>
 </div>
 </div>
 <div id="old-unused-code" class="section level1">
 <h1>Old Unused Code</h1>
+<p>lapply(dat<span class="math inline">\(`HEP B SURFACE AB QUAL`, first)
+== &quot;Detected&quot; |
+dat\)</span><code>HEP B SURFACE AB QUAL, SERUM</code> == “Reactive”</p>
 <pre class="r"><code># # Import the main dataset
 # data &lt;- read_excel(path = &quot;data/OPTIONS DATABASE v2.0_HAV_HBV.xlsx&quot;)
 # 

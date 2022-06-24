@@ -90,11 +90,16 @@ library(gtsummary)
    * Incorporate cirrhosis into FIB-4
    * other out of range liver biomarkers (ALT > 200, total bilirubin levels ≥ 3.0 mg/dL)
    * double check on the FIB-4 timeframe; and double check how other studies have looked at FIB-4
+   * cleanup null to na conversions
  * Questions
+   * Values of HBV DNA to determine HBV status?
+   * Definitions of eligibility for the vaccines?
+   * Confirm Heplisav-B is major HBV vaccine product used?
+   * Possible to determine order of tests?
+   * Chart review variable for prior HBV exposure?
    * Source of HCC screening data
    * was there ever a quantitative HbSAg test? the specification of a qualitative test in 'HEP B SURFACE AB QUAL' suggests there might have been a need for distinction at one time
    * should anything be done with the comments? e.g. 'declined HBV vaccine?", "left AMA", etc
-   * cleanup null to na conversions
    
  * For next week:
    * lab costs?
@@ -119,6 +124,8 @@ Import the extra data
 ```{r}
 allergy <- read.xlsx(xlsxFile = "data/HAV_HBV data_pull_de_ID.xlsx",
                       sheet = "Allergies")
+# vaccines administered at any site
+# NB Vaccines without an administration date were ordered but not given
 vaccine <- read.xlsx(xlsxFile = "data/HAV_HBV data_pull_de_ID.xlsx",
                       sheet = "Any_vaccine",
                       detectDates = TRUE)
@@ -128,7 +135,7 @@ hep_tests <- read.xlsx(xlsxFile = "data/HAV_HBV data_pull_de_ID.xlsx",
 labs <- read.xlsx(xlsxFile = "data/HAV_HBV data_pull_de_ID.xlsx",
                       sheet = "other_labs")
 
-#From new data pull
+#From new data pull, includes day that the lab was taken
 labs2 <- read.xlsx(xlsxFile = "data/Matt's data_de_ID_6_3_22.xlsx",
                       sheet = "CBC_CMP_labs")
 vaccine2 <- read.xlsx(xlsxFile = "data/Matt's data_de_ID_6_3_22.xlsx",
@@ -627,6 +634,14 @@ dat$fib_4 <- dat$age * dat$ast_f * (dat$alt_f)^-0.5 / dat$plt_f
 summary(dat$fib_4)
 ```
 
+For HAV we want to look at the case criteria for HAV; including total bilitubin > 3.0 mg/dL or ALT > 200 IU/L (https://www.cdc.gov/hepatitis/hav/havfaq.htm).
+
+```{r}
+dat$bili_3 <- ifelse(lapply(dat$`BILIRUBIN TOTAL`, first) >= 3.0, 1,0)
+dat$ALT_200 <- ifelse(lapply(dat$`ALT (SGPT)`, first) > 200, 1,0)
+```
+
+
 
 # Outcome Variables
 
@@ -646,19 +661,11 @@ table(dat$hav_screen)
 
 ## HAV Vaccination
 
-NB Vaccines without an administration date were ordered but not given
 
 ```{r}
-# replacing NAs with 0 in administration date
-# vaccine$Administration_Date__Sorting_[is.na(vaccine$Administration_Date__Sorting_, origin = “1964-10-22”)] <- 0
-# vaccine$Administration_Date__Sorting_[as.date(vaccine$Administration_Date__Sorting_, origin = “1964-10-22”) >= 2000] <- 0
-# vaccine[is.na(vaccine)] <- 0
+dat$hav_vaccine <- ifelse(is.na(dat$Havrix), 0, 1)
+table(dat$hav_vaccine)
 ```
-
-```{r}
-```
-
-
 
 ## HBV Screening
 
@@ -685,14 +692,30 @@ table(dat$hbv_screen_any, dat$hbv_screen_CDC)
 
 ## HBV Vaccination
 
-
+```{r}
+dat$hbv_vaccine <- ifelse(is.na(dat$EngerixB) & is.na(dat$HeplisavB), 0, 1)
+table(dat$hbv_vaccine)
+```
 
 ## HDV Screening
 
 ```{r}
 dat$hdv_screen <- ifelse(is.na(dat$`HEP DELTA AB`),0,1)
-# table(dat$hdv_screen, dat$`HEP DELTA AB`)
+table(dat$hdv_screen)
 ```
+
+# Misc Variables
+
+## HBV Status
+
+defined as positive if HBV DNA or HBSag is detected
+
+```{r}
+dat$hbv_status <- ifelse(dat$`HEP B DNA QUANT IU, VALUE` > 10 | dat$`HEP B DNA QUAL` == "Detected" | dat$`HEP B DNA QUANT IU, VALUE` > 10 | lapply(dat$`HEP B SURFACE AG`, first) == "Detected" | lapply(dat$`HEPATITIS B SURFACE AG, SERUM`, first) == "Positive" ,1,0)
+dat$hbv_status[is.na(dat$hbv_status)] <- 0
+table(dat$hbv_status)
+```
+
 
 # Table 1
 
@@ -801,6 +824,26 @@ t1_merge
 
 # Misc Calculations
 
+## Cost of tests
+
+### HAV IgM
+
+HAV IGM can be considered indicated if either of the lab criteria are met (total bilitubin > 3.0 mg/dL or ALT > 200 IU/L):
+
+```{r}
+dat$hav_IgM_indicated <- ifelse(dat$bili_3 | dat$ALT_200,1,0)
+table(dat$hav_IgM_indicated)
+table(dat$hav_IgM_indicated, !is.na(dat$`HEPATITIS A AB, IGM`))
+```
+
+36 HAV IgM tests ordered without lab value indication: 36*$90 = $3240.
+
+### HBV DNA & HBV E antigen/antibody
+
+Difficult to determine order of tests to determine if test is appropriate or not
+
+### 
+
 ## HBV Vaccine Utilization pattern
 
 Tabulating vaccines administered in-hospital:
@@ -820,7 +863,11 @@ No data
 
 ## Proportion of PWHBV screened for HDV
 
+```{r}
+table(dat$hbv_status, dat$hdv_screen)
+```
 
+One in six were screened for HDV.
 
 ## Proportion of returning vaccinated patients receiving additiona HBV vaccine dose
 
@@ -832,7 +879,11 @@ No data
 
 ## Use of Accelerated Dosing
 
+No accelerated dosing observed.
+
 # Old Unused Code
+
+lapply(dat$`HEP B SURFACE AB QUAL`, first) == "Detected" | dat$`HEP B SURFACE AB QUAL, SERUM` == "Reactive"
 
 ```{r}
 # # Import the main dataset
