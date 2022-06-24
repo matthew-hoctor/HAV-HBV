@@ -1546,9 +1546,6 @@ div.tocify {
 <li>Outstanding Issues
 <ul>
 <li>test named ‘HEB P DNA QUANT’</li>
-<li>Lack of temporality info in labs: unclear which labs to use (e.g. to
-calculate FIB-4)</li>
-<li>issues with date info on vaccine administration</li>
 </ul></li>
 <li>Resolved Issues
 <ul>
@@ -1561,24 +1558,31 @@ there is no info in the dataset on HIV status on admission.</li>
 <li>Updated HAV screening variable to not include HAV IGM measurement; 8
 observations had only HAV IgM measurements without HAV IGG or HAV AB
 total measurements</li>
-<li>lab costs?</li>
+<li>Lack of temporality info in labs: unclear which labs to use (e.g. to
+calculate FIB-4)</li>
+<li>issues with date info on vaccine administration</li>
+<li>other out of range liver biomarkers (ALT &gt; 200, total bilirubin
+levels ≥ 3.0 mg/dL)</li>
 </ul></li>
 <li>To Do
 <ul>
 <li>Incorporate cirrhosis into FIB-4</li>
-<li>other out of range liver biomarkers (ALT &gt; 200, total bilirubin
-levels ≥ 3.0 mg/dL)</li>
 <li>double check on the FIB-4 timeframe; and double check how other
 studies have looked at FIB-4</li>
 <li>cleanup null to na conversions</li>
 </ul></li>
 <li>Questions
 <ul>
+<li>lab costs of HBV E antigen?</li>
 <li>Values of HBV DNA to determine HBV status?</li>
 <li>Definitions of eligibility for the vaccines?</li>
+<li>HBV: No prior immunity, no prior documentation of vaccination, no
+prior</li>
+<li>HAV: no prior immunity?</li>
 <li>Confirm Heplisav-B is major HBV vaccine product used?</li>
 <li>Possible to determine order of tests?</li>
-<li>Chart review variable for prior HBV exposure?</li>
+<li>Chart review variable for prior HBV exposure? I.e. is there a HBV
+status prior to admission variable I’m missing somewhere</li>
 <li>Source of HCC screening data</li>
 <li>was there ever a quantitative HbSAg test? the specification of a
 qualitative test in ‘HEP B SURFACE AB QUAL’ suggests there might have
@@ -2464,12 +2468,12 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
 <div id="t1" class="section level2">
 <h2>T1</h2>
 <pre class="r"><code>t1_merge</code></pre>
-<div id="xtfohqygni" style="overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<div id="xpfmygqmmb" style="overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
 <style>html {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', 'Fira Sans', 'Droid Sans', Arial, sans-serif;
 }
 
-#xtfohqygni .gt_table {
+#xpfmygqmmb .gt_table {
   display: table;
   border-collapse: collapse;
   margin-left: auto;
@@ -2494,7 +2498,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   border-left-color: #D3D3D3;
 }
 
-#xtfohqygni .gt_heading {
+#xpfmygqmmb .gt_heading {
   background-color: #FFFFFF;
   text-align: center;
   border-bottom-color: #FFFFFF;
@@ -2506,7 +2510,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   border-right-color: #D3D3D3;
 }
 
-#xtfohqygni .gt_title {
+#xpfmygqmmb .gt_title {
   color: #333333;
   font-size: 125%;
   font-weight: initial;
@@ -2518,7 +2522,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   border-bottom-width: 0;
 }
 
-#xtfohqygni .gt_subtitle {
+#xpfmygqmmb .gt_subtitle {
   color: #333333;
   font-size: 85%;
   font-weight: initial;
@@ -2530,13 +2534,13 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   border-top-width: 0;
 }
 
-#xtfohqygni .gt_bottom_border {
+#xpfmygqmmb .gt_bottom_border {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
 }
 
-#xtfohqygni .gt_col_headings {
+#xpfmygqmmb .gt_col_headings {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -2551,7 +2555,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   border-right-color: #D3D3D3;
 }
 
-#xtfohqygni .gt_col_heading {
+#xpfmygqmmb .gt_col_heading {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -2571,7 +2575,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   overflow-x: hidden;
 }
 
-#xtfohqygni .gt_column_spanner_outer {
+#xpfmygqmmb .gt_column_spanner_outer {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -2583,15 +2587,15 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   padding-right: 4px;
 }
 
-#xtfohqygni .gt_column_spanner_outer:first-child {
+#xpfmygqmmb .gt_column_spanner_outer:first-child {
   padding-left: 0;
 }
 
-#xtfohqygni .gt_column_spanner_outer:last-child {
+#xpfmygqmmb .gt_column_spanner_outer:last-child {
   padding-right: 0;
 }
 
-#xtfohqygni .gt_column_spanner {
+#xpfmygqmmb .gt_column_spanner {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
@@ -2603,7 +2607,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   width: 100%;
 }
 
-#xtfohqygni .gt_group_heading {
+#xpfmygqmmb .gt_group_heading {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -2628,7 +2632,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   vertical-align: middle;
 }
 
-#xtfohqygni .gt_empty_group_heading {
+#xpfmygqmmb .gt_empty_group_heading {
   padding: 0.5px;
   color: #333333;
   background-color: #FFFFFF;
@@ -2643,15 +2647,15 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   vertical-align: middle;
 }
 
-#xtfohqygni .gt_from_md > :first-child {
+#xpfmygqmmb .gt_from_md > :first-child {
   margin-top: 0;
 }
 
-#xtfohqygni .gt_from_md > :last-child {
+#xpfmygqmmb .gt_from_md > :last-child {
   margin-bottom: 0;
 }
 
-#xtfohqygni .gt_row {
+#xpfmygqmmb .gt_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -2670,7 +2674,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   overflow-x: hidden;
 }
 
-#xtfohqygni .gt_stub {
+#xpfmygqmmb .gt_stub {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -2683,7 +2687,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   padding-right: 5px;
 }
 
-#xtfohqygni .gt_stub_row_group {
+#xpfmygqmmb .gt_stub_row_group {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -2697,11 +2701,11 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   vertical-align: top;
 }
 
-#xtfohqygni .gt_row_group_first td {
+#xpfmygqmmb .gt_row_group_first td {
   border-top-width: 2px;
 }
 
-#xtfohqygni .gt_summary_row {
+#xpfmygqmmb .gt_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -2711,16 +2715,16 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   padding-right: 5px;
 }
 
-#xtfohqygni .gt_first_summary_row {
+#xpfmygqmmb .gt_first_summary_row {
   border-top-style: solid;
   border-top-color: #D3D3D3;
 }
 
-#xtfohqygni .gt_first_summary_row.thick {
+#xpfmygqmmb .gt_first_summary_row.thick {
   border-top-width: 2px;
 }
 
-#xtfohqygni .gt_last_summary_row {
+#xpfmygqmmb .gt_last_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -2730,7 +2734,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   border-bottom-color: #D3D3D3;
 }
 
-#xtfohqygni .gt_grand_summary_row {
+#xpfmygqmmb .gt_grand_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -2740,7 +2744,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   padding-right: 5px;
 }
 
-#xtfohqygni .gt_first_grand_summary_row {
+#xpfmygqmmb .gt_first_grand_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -2750,11 +2754,11 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   border-top-color: #D3D3D3;
 }
 
-#xtfohqygni .gt_striped {
+#xpfmygqmmb .gt_striped {
   background-color: rgba(128, 128, 128, 0.05);
 }
 
-#xtfohqygni .gt_table_body {
+#xpfmygqmmb .gt_table_body {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -2763,7 +2767,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   border-bottom-color: #D3D3D3;
 }
 
-#xtfohqygni .gt_footnotes {
+#xpfmygqmmb .gt_footnotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -2777,7 +2781,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   border-right-color: #D3D3D3;
 }
 
-#xtfohqygni .gt_footnote {
+#xpfmygqmmb .gt_footnote {
   margin: 0px;
   font-size: 90%;
   padding-left: 4px;
@@ -2786,7 +2790,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   padding-right: 5px;
 }
 
-#xtfohqygni .gt_sourcenotes {
+#xpfmygqmmb .gt_sourcenotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -2800,7 +2804,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   border-right-color: #D3D3D3;
 }
 
-#xtfohqygni .gt_sourcenote {
+#xpfmygqmmb .gt_sourcenote {
   font-size: 90%;
   padding-top: 4px;
   padding-bottom: 4px;
@@ -2808,36 +2812,36 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   padding-right: 5px;
 }
 
-#xtfohqygni .gt_left {
+#xpfmygqmmb .gt_left {
   text-align: left;
 }
 
-#xtfohqygni .gt_center {
+#xpfmygqmmb .gt_center {
   text-align: center;
 }
 
-#xtfohqygni .gt_right {
+#xpfmygqmmb .gt_right {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
-#xtfohqygni .gt_font_normal {
+#xpfmygqmmb .gt_font_normal {
   font-weight: normal;
 }
 
-#xtfohqygni .gt_font_bold {
+#xpfmygqmmb .gt_font_bold {
   font-weight: bold;
 }
 
-#xtfohqygni .gt_font_italic {
+#xpfmygqmmb .gt_font_italic {
   font-style: italic;
 }
 
-#xtfohqygni .gt_super {
+#xpfmygqmmb .gt_super {
   font-size: 65%;
 }
 
-#xtfohqygni .gt_two_val_uncert {
+#xpfmygqmmb .gt_two_val_uncert {
   display: inline-block;
   line-height: 1em;
   text-align: right;
@@ -2846,31 +2850,31 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
   margin-left: 0.1em;
 }
 
-#xtfohqygni .gt_footnote_marks {
+#xpfmygqmmb .gt_footnote_marks {
   font-style: italic;
   font-weight: normal;
   font-size: 75%;
   vertical-align: 0.4em;
 }
 
-#xtfohqygni .gt_asterisk {
+#xpfmygqmmb .gt_asterisk {
   font-size: 100%;
   vertical-align: 0;
 }
 
-#xtfohqygni .gt_slash_mark {
+#xpfmygqmmb .gt_slash_mark {
   font-size: 0.7em;
   line-height: 0.7em;
   vertical-align: 0.15em;
 }
 
-#xtfohqygni .gt_fraction_numerator {
+#xpfmygqmmb .gt_fraction_numerator {
   font-size: 0.6em;
   line-height: 0.6em;
   vertical-align: 0.45em;
 }
 
-#xtfohqygni .gt_fraction_denominator {
+#xpfmygqmmb .gt_fraction_denominator {
   font-size: 0.6em;
   line-height: 0.6em;
   vertical-align: -0.05em;
@@ -3011,16 +3015,25 @@ table(dat$hav_IgM_indicated)</code></pre>
 ##     FALSE TRUE
 ##   0   240   36
 ##   1    14    5</code></pre>
-<p>36 HAV IgM tests ordered without lab value indication: 36*$90 =
-$3240.</p>
+<p>36 out of 41 HAV IgM tests ordered without lab value indication:
+36*$90 = $3240.</p>
 </div>
 <div id="hbv-dna-hbv-e-antigenantibody" class="section level3">
 <h3>HBV DNA &amp; HBV E antigen/antibody</h3>
 <p>Difficult to determine order of tests to determine if test is
 appropriate or not</p>
-</div>
-<div id="section" class="section level3">
-<h3></h3>
+<pre class="r"><code>dat$hbv_eag &lt;- ifelse(!is.na(dat$`HEPATITIS BE AB`) | !is.na(dat$`HEPATITIS BE AG, SERUM`), 1, 0)
+table(dat$hbv_eag)</code></pre>
+<pre><code>## 
+##   0   1 
+## 308  12</code></pre>
+<pre class="r"><code>table(dat$hbv_status, dat$hbv_eag)</code></pre>
+<pre><code>##    
+##       0   1
+##   0 305   9
+##   1   3   3</code></pre>
+<p>Of the 12 patients for whom the E antigen was tested, only 3 had
+detectable HBV DNA or HBV surface antigen;</p>
 </div>
 </div>
 <div id="hbv-vaccine-utilization-pattern" class="section level2">

@@ -79,24 +79,26 @@ library(gtsummary)
 
  * Outstanding Issues
    * test named 'HEB P DNA QUANT'
-   * Lack of temporality info in labs: unclear which labs to use (e.g. to calculate FIB-4)
-   * issues with date info on vaccine administration
  * Resolved Issues
    * Discordant HCV data: updated HCV +/- definition to include any evidence of past HCV exposure
    * Discordant HIV data: apparent discordance is mostly due to lack of indication for HIV test in some patients; the HIV+ patient who tested negative could be due to viral suppression, but this is unclear, as there is no info in the dataset on HIV status on admission.
    * Updated HAV screening variable to not include HAV IGM measurement; 8 observations had only HAV IgM measurements without HAV IGG or HAV AB total measurements
-   * lab costs?
+   * Lack of temporality info in labs: unclear which labs to use (e.g. to calculate FIB-4)
+   * issues with date info on vaccine administration
+   * other out of range liver biomarkers (ALT > 200, total bilirubin levels ≥ 3.0 mg/dL)
  * To Do
    * Incorporate cirrhosis into FIB-4
-   * other out of range liver biomarkers (ALT > 200, total bilirubin levels ≥ 3.0 mg/dL)
    * double check on the FIB-4 timeframe; and double check how other studies have looked at FIB-4
    * cleanup null to na conversions
  * Questions
+   * lab costs of HBV E antigen?
    * Values of HBV DNA to determine HBV status?
    * Definitions of eligibility for the vaccines?
+    * HBV: No prior immunity, no prior documentation of vaccination, no prior
+    * HAV: no prior immunity?
    * Confirm Heplisav-B is major HBV vaccine product used?
    * Possible to determine order of tests?
-   * Chart review variable for prior HBV exposure?
+   * Chart review variable for prior HBV exposure?  I.e. is there a HBV status prior to admission variable I'm missing somewhere
    * Source of HCC screening data
    * was there ever a quantitative HbSAg test? the specification of a qualitative test in 'HEP B SURFACE AB QUAL' suggests there might have been a need for distinction at one time
    * should anything be done with the comments? e.g. 'declined HBV vaccine?", "left AMA", etc
@@ -836,13 +838,19 @@ table(dat$hav_IgM_indicated)
 table(dat$hav_IgM_indicated, !is.na(dat$`HEPATITIS A AB, IGM`))
 ```
 
-36 HAV IgM tests ordered without lab value indication: 36*$90 = $3240.
+36 out of 41 HAV IgM tests ordered without lab value indication: 36*$90 = $3240.
 
 ### HBV DNA & HBV E antigen/antibody
 
 Difficult to determine order of tests to determine if test is appropriate or not
 
-### 
+```{r}
+dat$hbv_eag <- ifelse(!is.na(dat$`HEPATITIS BE AB`) | !is.na(dat$`HEPATITIS BE AG, SERUM`), 1, 0)
+table(dat$hbv_eag)
+table(dat$hbv_status, dat$hbv_eag)
+```
+
+Of the 12 patients for whom the E antigen was tested, only 3 had detectable HBV DNA or HBV surface antigen; 
 
 ## HBV Vaccine Utilization pattern
 
