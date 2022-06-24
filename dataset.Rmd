@@ -78,13 +78,33 @@ library(gtsummary)
 # Issues
 
  * Outstanding Issues
+   * test named 'HEB P DNA QUANT'
    * Lack of temporality info in labs: unclear which labs to use (e.g. to calculate FIB-4)
+   * issues with date info on vaccine administration
  * Resolved Issues
    * Discordant HCV data: updated HCV +/- definition to include any evidence of past HCV exposure
    * Discordant HIV data: apparent discordance is mostly due to lack of indication for HIV test in some patients; the HIV+ patient who tested negative could be due to viral suppression, but this is unclear, as there is no info in the dataset on HIV status on admission.
+   * Updated HAV screening variable to not include HAV IGM measurement; 8 observations had only HAV IgM measurements without HAV IGG or HAV AB total measurements
+   * lab costs?
  * To Do
-   * Incorporate chirrosis into FIB-4
-   * other out of range liver biomarkers
+   * Incorporate cirrhosis into FIB-4
+   * other out of range liver biomarkers (ALT > 200, total bilirubin levels ≥ 3.0 mg/dL)
+   * double check on the FIB-4 timeframe; and double check how other studies have looked at FIB-4
+ * Questions
+   * Source of HCC screening data
+   * was there ever a quantitative HbSAg test? the specification of a qualitative test in 'HEP B SURFACE AB QUAL' suggests there might have been a need for distinction at one time
+   * should anything be done with the comments? e.g. 'declined HBV vaccine?", "left AMA", etc
+   * cleanup null to na conversions
+   
+ * For next week:
+   * lab costs?
+   * improper labs
+     * IgM HAV
+     * HBV DNA
+     * HBV E antigen/antibody
+     * HDV 
+     * Looking at just Surface AB alone
+   * other exploratory labs
    
 # Import Data
 
@@ -101,11 +121,20 @@ allergy <- read.xlsx(xlsxFile = "data/HAV_HBV data_pull_de_ID.xlsx",
                       sheet = "Allergies")
 vaccine <- read.xlsx(xlsxFile = "data/HAV_HBV data_pull_de_ID.xlsx",
                       sheet = "Any_vaccine",
-                     detectDates = TRUE)
+                      detectDates = TRUE)
 hep_tests <- read.xlsx(xlsxFile = "data/HAV_HBV data_pull_de_ID.xlsx",
                       sheet = "hepatitis_tests")
+# Old labs data
 labs <- read.xlsx(xlsxFile = "data/HAV_HBV data_pull_de_ID.xlsx",
                       sheet = "other_labs")
+
+#From new data pull
+labs2 <- read.xlsx(xlsxFile = "data/Matt's data_de_ID_6_3_22.xlsx",
+                      sheet = "CBC_CMP_labs")
+vaccine2 <- read.xlsx(xlsxFile = "data/Matt's data_de_ID_6_3_22.xlsx",
+                      sheet = "vaccines_during_admit")
+icu <- read.xlsx(xlsxFile = "data/Matt's data_de_ID_6_3_22.xlsx",
+                      sheet = "ICU_days")
 ```
 
 Import chart review data
@@ -117,10 +146,31 @@ chart <- read.xlsx(xlsxFile = "data/STI_chart_review - deID.xlsx",
 
 # Cleaning the dataset
 
+## Initial cleaning
+
 Creates a new dataset to modify:
 
 ```{r}
 dat <- data_v2
+```
+
+Removes empty columns and sparse columns (columns with only one non-NA value):
+
+```{r}
+sparsity <- colSums(is.na(dat))
+empty_columns <- sparsity == nrow(dat)
+sparse_columns <- sparsity >= (nrow(dat) - 1)
+
+# how many empty columns
+summary(empty_columns)
+# how many sparse columns
+summary(sparse_columns)
+
+# remove sparse columns
+dat <- dat[, !sparse_columns]
+
+# cleanup
+rm(empty_columns, sparse_columns, sparsity)
 ```
 
 ## Clean Variable names
@@ -217,7 +267,7 @@ dat <- merge(x = dat,
              by = c("Patient_ID", "Infection_ID"),
              all.x = TRUE)
 # cleanup
-remove(labsW)
+remove(labsW, labs)
 ```
 
 ## Widen & merge hepatitis test data
@@ -239,6 +289,54 @@ dat <- merge(x = dat,
 # cleanup
 remove(hepW, hep_tests)
 ```
+
+## Widen & merge vaccine data
+
+Tabulating vaccines administered in-hospital:
+
+```{r}
+table(vaccine2$Generic_Name)
+```
+
+```{r}
+# recode a brand name variable for differently named generic drugs
+vaccine2$brand <- recode(vaccine2$Generic_Name,
+                         "hepatitis A vaccine (PF) 1,440 ELISA unit/mL intramuscular syringe" = "Havrix",
+                         "hepatitis A virus vaccine (PF) 1,440 ELISA unit/mL IM suspension" = "Havrix",
+                         "hepatitis B vaccine 20 mcg/0.5 mL-adjuvant CpG 1018 (PF) IM solution" = "HeplisavB",
+                         "hepatitis B vaccine 20 mcg/0.5 mL-adjuvant CpG 1018 (PF) IM syringe" = "HeplisavB",
+                         "hepatitis B virus vaccine recomb (PF) 20 mcg/mL intramuscular susp" = "EngerixB")
+
+# widen
+vaccineW2 <- vaccine2 %>%
+  filter(is.na(Generic_Name) == FALSE) %>%
+  pivot_wider(
+    id_cols =  c("Patient_ID", "Infection_ID"),
+    names_from = brand,
+    values_from = admin_date_admission_date,
+    values_fill = NA,
+    names_sort = TRUE
+)
+
+# convert NULL to NA
+vaccineW2$EngerixB[vaccineW2$EngerixB == "NULL"] <- NA
+vaccineW2$Havrix[vaccineW2$Havrix == "NULL"] <- NA
+vaccineW2$HeplisavB[vaccineW2$HeplisavB == "NULL"] <- NA
+
+# merge
+dat <- merge(x = dat,
+             y = vaccineW2,
+             by = c("Patient_ID", "Infection_ID"),
+             all.x = TRUE)
+
+# cleanup
+remove(vaccineW2)
+```
+
+
+## Widen & merge vaccine ordering/administration data
+
+
 
 ## Clean the full dataset
 
@@ -292,7 +390,7 @@ table(dat$hcv2, dat$hcv, useNA = "ifany")
 table(dat$hcv2, dat$hcv, useNA = "ifany")
 ```
 
-There is not complete concordance in this encoding.  We can also consider HCV status at admission:
+There is not complete concordance in this encoding.  We can also consider HCV status at admission, to see if this will rectify it:
 
 ```{r}
 table(dat$HCV_status_at_admission, useNA = "ifany")
@@ -328,6 +426,8 @@ table(dat$hcv3, dat$hcv, useNA = "ifany")
 table(dat$hcv4, dat$hcv, useNA = "ifany")
 table(dat$hcv4, useNA = "ifany")
 ```
+
+This produces a combined HCV+ variable (a composite of the chart review data, HCV lab data, and HCV status prior to admission) with no missing values.
 
 ## Homeless
 
@@ -464,7 +564,7 @@ hiv_discordance_subset$HIV_Result
 rm(hiv_discordance_subset)
 ```
 
-This is consistent with the above hypothesis.
+Undetectable viral load on a quantitative PCR test is consistent with the above hypothesis that the discordant observation may be due to undetectable viral load during treatment.
 
 ## Allergies
 
@@ -498,7 +598,7 @@ allergyW[allergyW$yeast_allergy == 1,]$`PNEUMOC 13-VAL CONJ-DIP CR(PF)`
 allergyW[allergyW$ag_allergy == 1,]$GENTAMICIN
 ```
 
-The patient with 'allergy' to the PCV13 vaccine experienced pruritis (a common, >10%, reaction to this vaccine), whereas the patient with aminoglycoside allergy experienced hives.  We can now join this data into the main dataset:
+The patient with 'allergy' to the PCV13 vaccine experienced pruritis (a common, >10%, reaction to this vaccine), whereas the patient with aminoglycoside allergy experienced hives.  An IgE mediated reaction to PCV-13 may be considered a contraindication to HBV vaccination, as common ingredients are shared, but pruritis does not qualify. Havrix contains neomycin, which may cross-react with gentamycin.  We can now join this data into the main dataset:
 
 ```{r}
 dat <- merge(x = dat, 
@@ -532,15 +632,56 @@ summary(dat$fib_4)
 
 ## HAV Screening
 
+IG-M is not for screening; NB HEPATITIS A AB TOTAL is an old name for HEPATITIS A IGG
 
+```{r}
+#cross-tabulating number of NA-values in both HAV IgG variables:
+table(is.na(dat$`HEPATITIS A AB TOTAL`), is.na(dat$`HEPATITIS A IGG`))
+
+dat$hav_screen <- ifelse(!(is.na(dat$`HEPATITIS A AB TOTAL`) & is.na(dat$`HEPATITIS A IGG`)),1,0)
+table(dat$hav_screen, is.na(dat$`HEPATITIS A AB TOTAL`))
+table(dat$hav_screen, is.na(dat$`HEPATITIS A IGG`))
+table(dat$hav_screen)
+```
 
 ## HAV Vaccination
+
+NB Vaccines without an administration date were ordered but not given
+
+```{r}
+# replacing NAs with 0 in administration date
+# vaccine$Administration_Date__Sorting_[is.na(vaccine$Administration_Date__Sorting_, origin = “1964-10-22”)] <- 0
+# vaccine$Administration_Date__Sorting_[as.date(vaccine$Administration_Date__Sorting_, origin = “1964-10-22”) >= 2000] <- 0
+# vaccine[is.na(vaccine)] <- 0
+```
+
+```{r}
+```
 
 
 
 ## HBV Screening
 
+We are here using the definition of screening provided by the guidelines reviewed in Hepatitis B Online (https://www.hepatitisb.uw.edu/go/screening-diagnosis/diagnosis-hbv/core-concept/all#recommended-screening-tests); I.e. the patient needs HbSAg AND anti-HBs OR anti-HbC to be considered screened:
 
+```{r}
+# a variable for any screening test
+dat$hbv_screen_any <- ifelse(
+  is.na(dat$`HEP B CORE AB`) & is.na(dat$`HEP B SURFACE AB QUAL`) & is.na(dat$`HEP B SURFACE AB QUAL, SERUM`) & is.na(dat$`HEP B SURFACE AG`) & is.na(dat$`HEPATITIS B CORE AB, SERUM`) & is.na(dat$`HEPATITIS B SURFACE AG, SERUM`),
+  0, 1)
+# a variable for surface antigen screening
+dat$hbv_sag <- ifelse(
+  !is.na(dat$`HEP B SURFACE AG`) | !is.na(dat$`HEPATITIS B SURFACE AG, SERUM`),
+  1, 0)
+# a variable for CDC-recommended screening in PWID
+dat$hbv_screen_CDC <- ifelse(
+  (!is.na(dat$`HEP B SURFACE AG`) | !is.na(dat$`HEPATITIS B SURFACE AG, SERUM`)) & (!is.na(dat$`HEP B CORE AB`) | !is.na(dat$`HEP B SURFACE AB QUAL`) | !is.na(dat$`HEP B SURFACE AB QUAL, SERUM`) | !is.na(dat$`HEPATITIS B CORE AB, SERUM`)),
+  1, 0)
+
+table(dat$hbv_screen_any)
+table(dat$hbv_screen_any, dat$hbv_sag)
+table(dat$hbv_screen_any, dat$hbv_screen_CDC)
+```
 
 ## HBV Vaccination
 
@@ -660,6 +801,36 @@ t1_merge
 
 # Misc Calculations
 
+## HBV Vaccine Utilization pattern
+
+Tabulating vaccines administered in-hospital:
+
+```{r}
+table(vaccine2$brand)
+```
+
+Results:
+  * Heplisav-B (CpG 1018) was administered to 22 patients; this is notable because this vaccine was approved Nov  9, 2017, and this series requires only two shots one month apart
+  * Engerix-B was administered to 14 patients
+  * Havrix was administered to 17 patients (2-dose series 6-12 months apart)
+
+## Proportion of PWHBV Screened for HCC
+
+No data
+
+## Proportion of PWHBV screened for HDV
+
+
+
+## Proportion of returning vaccinated patients receiving additiona HBV vaccine dose
+
+
+
+## Proportion of returning unvaccinated patients starting HBV vaccine series
+
+
+
+## Use of Accelerated Dosing
 
 # Old Unused Code
 
