@@ -1,15 +1,20 @@
 Issues:
 
  * Outstanding Issues
-   * test named 'HEB P DNA QUANT'
+   * how was the original vaccine administration dataset derived?  
+   
 
  * To Do
    * Incorporate cirrhosis into FIB-4
    * double check on the FIB-4 timeframe; and double check how other studies have looked at FIB-4
    * cleanup null to na conversions
+   * validate HBV variable against 'HBV Vaccination Status' variable from STI chart review
    
  * Questions
    * lab costs of HBV E antigen?
+   * what's going on with blank rows in the ICU dataset?
+   
+   
  * Answers   
    * Values of HBV DNA to determine HBV status: 10
    * Chart review variable for prior HBV exposure?  I.e. is there a HBV status prior to admission variable I'm missing somewhere
@@ -38,9 +43,11 @@ Issues:
    * Send list of study IDs for confirmed HBV; we can look at HCC screening for these patients
    
  * Resolved Issues
+   * test named 'HEB P DNA QUANT'
+     * The HEB P DNA QUANT is definitely a typo and is listed as Hepatitis B by PCR in the chart with matching results
    * Discordant HCV data: updated HCV +/- definition to include any evidence of past HCV exposure
    * Discordant HIV data: apparent discordance is mostly due to lack of indication for HIV test in some patients; the HIV+ patient who tested negative could be due to viral suppression, but this is unclear, as there is no info in the dataset on HIV status on admission.
    * Updated HAV screening variable to not include HAV IGM measurement; 8 observations had only HAV IgM measurements without HAV IGG or HAV AB total measurements
    * Lack of temporality info in labs: unclear which labs to use (e.g. to calculate FIB-4)
-   * issues with date info on vaccine administration
+   * issues with date info on vaccine administration: Vaccines without an administration date were ordered but not given
    * other out of range liver biomarkers (ALT > 200, total bilirubin levels ≥ 3.0 mg/dL)
