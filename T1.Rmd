@@ -19,11 +19,11 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 # library(dplyr)
 # library(readxl)
-library(openxlsx)
+# library(openxlsx)
 library(tidyverse)
 library(janitor)
 library(gtsummary)
-library(lubridate)
+# library(lubridate)
 # library(ggplot2)
 # library(gridExtra)        #grid.arrange for multiple ggplots
 # library(reshape2)       #melt function for simple longform datasets
@@ -79,7 +79,7 @@ library(lubridate)
 # Import Data
 
 ```{r include=FALSE}
-readRDS(file = "data/dat.Rds")
+dat <- readRDS(file = "data/dat.Rds")
 ```
 
 # Table Description
