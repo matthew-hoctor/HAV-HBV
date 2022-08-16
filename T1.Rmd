@@ -1,0 +1,189 @@
+---
+title: "Table 1"
+author: "Matthew Hoctor"
+date: "5/6/2022"
+output:
+  html_document:
+    number_sections: no
+    theme: lumen
+    toc: yes
+    toc_float:
+      collapsed: yes
+      smooth_scroll: no
+  pdf_document:
+    toc: yes
+    toc_depth: 3
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+# library(dplyr)
+# library(readxl)
+library(openxlsx)
+library(tidyverse)
+library(janitor)
+library(gtsummary)
+library(lubridate)
+# library(ggplot2)
+# library(gridExtra)        #grid.arrange for multiple ggplots
+# library(reshape2)       #melt function for simple longform datasets
+# library(CarletonStats)
+# library(pwr)
+# library(BSDA)
+# library(exact2x2)
+# library(car)
+# library(dvmisc)
+# library(emmeans)
+# library(DescTools)
+# library(DiagrammeR)     #for plotting trees
+# library(nlme)
+# library(doBy)
+# library(geepack)
+# library(rje)
+# library(ISLR2)
+# library(psych)
+# library(MASS)
+# library(caret)            #for confusionMatrix function
+# library(rje)
+# library(class)          #for knn function
+# library(e1071)          #for naiveBayes function & SVM svm() funcion
+# library(boot)           #for boot function
+# library(covTest)        #for covTest function
+# library(leaps)          #for regsubsets function for best subset selection
+# library(broom)
+# library(glmnet)         #for glmnet() for shrinkage methods
+# library(doParallel)     #for parallel computing in glmnet(); does not work
+# library(pls)            #for pcr function
+# library(qpcR)           #for RSS function
+# library(splines)        #for bs() function for basis function of regression splines
+# library(quantreg)       #for quantreg() for quantile regression
+# library(tree)           #older package for tree regression
+# library(rpart)          #more maintained package for tree regression
+# library(rattle)         #for visually appealing tree plotting
+# library(randomForest)   #for random forest technique
+# library(party)          #?cforest function for plotting random forests?
+# library(xgboost)
+# library(gbm)            #more gradient boosting functions
+# library(LiblineaR)
+# library(svmpath)
+# library(msvmpath)
+# library(scatterplot3d)    #for the 3d scatterplot of pca
+# library(mclust)           #for cluster analysis; also imputeData() & imputePairs() functions
+# library(tightClust)       #another clustering library; tight.clust() function
+# library(softImpute)       #for imputing missing data
+# library(factoextra)       #for plotting clusters from k-means
+# library(keras)
+# library(neuralnet)          #traditional neutal network package
+```
+
+# Import Data
+
+```{r include=FALSE}
+readRDS(file = "data/dat.Rds")
+```
+
+# Table Description
+
+Preliminary definitions:
+
+```{r}
+# Variables to tabulate
+variables <- c("age", "genderM", "medicaid_t1", "race_eth_t1", "hiv_t1", "fib_4")
+
+# Describes formatting of significant figures
+digits_list <- list(
+      age ~ 1,
+      fib_4 ~ 2
+    )
+
+# Describes labels for each variable
+label_list <- list(
+      age ~ "Age",
+      genderM ~ "Male Gender",
+      race_eth_t1 ~ "Race/Ethnicity",
+      medicaid_t1 ~ "Medicaid Eligible",
+      hiv_t1 ~ "HIV Positive",
+      fib_4 ~ "FIB-4"
+    )
+
+# Describes Statistics to compute
+statistic_list <- list(
+      all_continuous() ~ "{mean}",
+      all_categorical() ~ "{n} ({p}%)"
+    )
+
+# Table Title
+title <- "**Table 1. Patient Characteristics**"
+
+# subset dataframe to include only data from first admissions
+dat_t1 <- subset(dat, first_infection == TRUE)
+
+# Set the gtsummary theme:
+theme_gtsummary_journal(journal = "jama")
+
+# Tabulating the sub-tables to be joined together
+t1_overall <- dat_t1 %>%
+  select(variables) %>%
+  tbl_summary(
+    digits = digits_list,
+    label = label_list,
+    statistic = statistic_list,
+    missing = "no"
+  ) 
+
+t1_hcv <- dat_t1 %>%
+  select(hcv, variables) %>%
+  tbl_summary(
+    by = hcv,
+    digits = digits_list,
+    label = label_list,
+    statistic = statistic_list,
+    missing = "no"
+  ) # %>% add_p()
+
+t1_ivdu <- dat_t1 %>%
+  select(ivdu, variables) %>%
+  tbl_summary(
+    by = ivdu,
+    digits = digits_list,
+    label = label_list,
+    statistic = statistic_list,
+    missing = "no"
+  ) # %>% add_p() 
+
+t1_homeless <- dat_t1 %>%
+  select(homeless, variables) %>%
+  tbl_summary(
+    by = homeless,
+    digits = digits_list,
+    label = label_list,
+    statistic = statistic_list,
+    missing = "no"
+  ) # %>% add_p()
+
+# Merging the tables and displaying output
+t1_merge <-
+  tbl_merge(
+    tbls = list(t1_overall, t1_hcv, t1_ivdu, t1_homeless),
+    tab_spanner = c("**Overall**", "**HCV Status**", "**Intravenous Drug Use**", "**Housing Status**")
+  ) %>%
+  modify_caption(title) %>%
+  bold_labels()
+
+# cleanup
+remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1_overall)
+```
+
+# Table 1
+
+Display the table:
+
+```{r}
+t1_merge
+```
+
+# Session Info
+
+```{r}
+sessionInfo()
+```

@@ -23,6 +23,7 @@ library(openxlsx)
 library(tidyverse)
 library(janitor)
 library(gtsummary)
+library(lubridate)
 # library(ggplot2)
 # library(gridExtra)        #grid.arrange for multiple ggplots
 # library(reshape2)       #melt function for simple longform datasets
@@ -77,74 +78,80 @@ library(gtsummary)
 
 # Import Data
 
-Import the main dataset
-
 ```{r}
+# main dataset
 data_v2 <- read.xlsx(xlsxFile = "data/OPTIONS DATABASE v2.0_HAV_HBV.xlsx")
-```
 
-Import the extra data
-
-```{r}
+# allergic reaction data
 allergy <- read.xlsx(xlsxFile = "data/HAV_HBV data_pull_de_ID.xlsx",
                       sheet = "Allergies")
+
 # vaccines administered at any site
-# NB Vaccines without an administration date were ordered but not given
 vaccine <- read.xlsx(xlsxFile = "data/HAV_HBV data_pull_de_ID.xlsx",
                       sheet = "Any_vaccine",
                       detectDates = TRUE)
-hep_tests <- read.xlsx(xlsxFile = "data/HAV_HBV data_pull_de_ID.xlsx",
-                      sheet = "hepatitis_tests")
-# Old labs data
-labs <- read.xlsx(xlsxFile = "data/HAV_HBV data_pull_de_ID.xlsx",
-                      sheet = "other_labs")
-
-#From new data pull, includes day that the lab was taken
-labs2 <- read.xlsx(xlsxFile = "data/Matt's data_de_ID_6_3_22.xlsx",
-                      sheet = "CBC_CMP_labs")
+# vaccines administered only during admission
 vaccine2 <- read.xlsx(xlsxFile = "data/Matt's data_de_ID_6_3_22.xlsx",
                       sheet = "vaccines_during_admit")
+
+# hepatitis tests
+hep_tests <- read.xlsx(xlsxFile = "data/HAV_HBV data_pull_de_ID.xlsx",
+                      sheet = "hepatitis_tests")
+# lab data (old)
+# labs <- read.xlsx(xlsxFile = "data/HAV_HBV data_pull_de_ID.xlsx",
+#                       sheet = "other_labs")
+
+# labs from new data pull; includes day that the lab was taken
+labs2 <- read.xlsx(xlsxFile = "data/Matt's data_de_ID_6_3_22.xlsx",
+                      sheet = "CBC_CMP_labs")
+
+# ICU data
 icu <- read.xlsx(xlsxFile = "data/Matt's data_de_ID_6_3_22.xlsx",
                       sheet = "ICU_days")
-```
 
-Import chart review data
-
-```{r}
+# chart review data
 chart <- read.xlsx(xlsxFile = "data/STI_chart_review - deID.xlsx",
                       sheet = "chart_review")
+
+# HCC screening
+HCC <- read.xlsx(xlsxFile = "data/chart reivew, HCC screening.xlsx",
+                 sheet = "Sheet1",
+                 rows = 1:7,
+                 cols = 1:2)
+
+# immunosuppressants
+immunosuppressants <- read.xlsx(xlsxFile = "data/chart reivew, HCC screening.xlsx",
+                                sheet = "Sheet1",
+                                rows = 12:14,
+                                cols = 1:2)
 ```
 
 # Cleaning the dataset
 
 ## Initial cleaning
 
-Creates a new dataset to modify:
-
 ```{r}
+# Creates a new dataset to modify:
 dat <- data_v2
-```
 
-Removes empty columns and sparse columns (columns with only one non-NA value):
-
-```{r}
+# Removes empty columns and sparse columns (columns with only one non-NA value):
 sparsity <- colSums(is.na(dat))
 empty_columns <- sparsity == nrow(dat)
 sparse_columns <- sparsity >= (nrow(dat) - 1)
 
-# how many empty columns
+# how many empty columns?
 summary(empty_columns)
-# how many sparse columns
+# how many sparse columns?
 summary(sparse_columns)
 
-# remove sparse columns
+# remove sparse columns (all empty columns are also sparse columns, by definition)
 dat <- dat[, !sparse_columns]
 
 # cleanup
 rm(empty_columns, sparse_columns, sparsity)
 ```
 
-## Clean Variable names
+## Clean variable names
 
 ```{r}
 # Replaces . with _
@@ -152,147 +159,306 @@ names(dat) <- str_replace_all(string = names(dat),
                                   pattern =  "\\.",  
                                   replacement = "_")
 
-# Removes all text after the colon; i.e. the unnecessary encoding info
+# Removes all text after colon from variable names; i.e. the unnecessary encoding info
 names(dat) <- str_remove(string = names(dat), 
                              pattern =  "\\:.*")
 ```
 
-## Widen infection date information
-
-Creates a wide-format dataframe with Infection_ID in columns according to year of admission:
+## Add infections information
 
 ```{r}
-dates <- dat %>% 
-  select(Patient_ID, Infection_ID, Year_of_Admission) %>%
-  pivot_wider(
-    id_cols = Patient_ID,
-    names_from = Year_of_Admission,
-    values_from = Infection_ID,
-    names_prefix = "i_",
-    names_sort = TRUE
-)
-```
+dat <- dat %>%
+  group_by(Patient_ID) %>%
+  mutate(
+    i1 = min(Infection_ID),
+    i2 = ifelse(
+      n() == 2,
+      max(Infection_ID),
+      ifelse(n() == 3,
+             median(Infection_ID),
+             NA)
+    ),
+    i3 = ifelse(
+      n() == 3,
+      max(Infection_ID),
+      NA
+    )
+  ) %>%
+  mutate(
+    first_infection = ifelse(
+      Infection_ID == i1,
+      TRUE,
+      FALSE
+    )
+  )
 
-Creates a wide-format dataframe and finds the first (lowest value) infection:
+# remove grouping by Patient_ID
+dat <- dat %>%
+  ungroup()
 
-```{r}
-# creates a constant variable to pivot from
-dat$constant <- "infections"
-infections <- dat %>% 
-  select(Patient_ID, Infection_ID, constant) %>%
-  pivot_wider(
-    id_cols = Patient_ID,
-    names_from = constant,
-    values_from = Infection_ID,
-)
-
-# finds the first infection
-infections$first <- lapply(infections$infections, FUN = min)
-
-# cleans up the constant variable:
-dat$constant <- NULL
-```
-
-We can now merge these admission dates into the main dataset:
-
-```{r}
-dat <- merge(x = dat, 
-             y = dates,
-             by = "Patient_ID",
-             all.x = TRUE)
-
-dat <- merge(x = dat, 
-             y = infections,
-             by = "Patient_ID",
-             all.x = TRUE)
-
-# cleanup the temporary dataframes (dates, infections)
-remove(list = c("dates", "infections"))
+# Uncomment to view annotation data
+# dat %>%
+#   select(Patient_ID, Infection_ID, i1, i2, i3) %>%
+#   arrange(Infection_ID) %>%
+#   head(n = 40)
 ```
 
 ## Merge chart review data
 
+Data from the main chart review, HCC Screening, & immunosuppressant use are merged here
+
 ```{r}
+# merge main chart review
 dat <- merge(x = dat,
              y = chart,
              by = c("Patient_ID", "Infection_ID", "age_at_admission"),
              all.x = TRUE)
 
-# cleanup chart review dataframe
-remove(chart)
+# merge HCC screening
+dat <- merge(x = dat,
+             y = HCC,
+             by = c("Patient_ID"),
+             all.x = TRUE)
+
+# merge immunosuppresant use data
+dat <- merge(x = dat,
+             y = immunosuppressants,
+             by = c("Patient_ID"),
+             all.x = TRUE)
+
+# cleanup dataframes
+remove(chart, HCC, immunosuppressants)
+# remove 'HCVab' variable for better clarity
+dat$HCVab <- NULL
+# remove 'hcv_ab_or_pcr_positive__0_no__1_' because it is redundant
+dat$hcv_ab_or_pcr_positive__0_no__1_ <- NULL
+```
+
+## Widen & merge ICU data
+
+```{r}
+# widen
+icu$const <- "ICU_days_total"
+icuW <- icu %>%
+  filter(!is.na(number_of_ICU_days)) %>%
+  pivot_wider(id_cols = c("Patient_ID", "Infection_ID"),
+              names_from = const,
+              values_from = number_of_ICU_days,
+              values_fill = NA,
+              values_fn = sum)
+
+# merge
+dat <- merge(x = dat,
+             y = icuW,
+             by = c("Patient_ID", "Infection_ID"),
+             all.x = TRUE,
+             sort = TRUE) %>%
+  # replace NA values with 0 for ICU days
+  mutate(ICU_days_total = ifelse(is.na(ICU_days_total), 0, ICU_days_total))
+
+# cleanup
+rm(icu, icuW)
 ```
 
 ## Widen & merge lab data
 
 ```{r}
-# widen the lab data
-labsW <- labs %>%
-  filter(is.na(Lab_Component_Result_Value) == FALSE) %>%
-  pivot_wider(id_cols = c("Patient_ID", "Infection_ID"),
-              names_from = Lab_Component_Name,
-              values_from = Lab_Component_Result_Value,
-              values_fill = NA)
-# merge the lab data
-dat <- merge(x = dat,
-             y = labsW,
-             by = c("Patient_ID", "Infection_ID"),
-             all.x = TRUE)
-# cleanup
-remove(labsW, labs)
-```
-
-## Widen & merge hepatitis test data
-
-```{r}
-# widen
-hepW <- hep_tests %>%
+# widen the lab value data
+labsW_values <- labs2 %>%
   filter(is.na(Lab_Component_Result_Value) == FALSE) %>%
   pivot_wider(id_cols = c("Patient_ID", "Infection_ID"),
               names_from = Lab_Component_Name,
               values_from = Lab_Component_Result_Value,
               values_fill = NA,
+              values_fn = first)
+
+# widen the lab date data
+labsW_dates <- labs2 %>%
+  filter(is.na(Lab_Component_Result_Value) == FALSE) %>%
+  pivot_wider(id_cols = c("Patient_ID", "Infection_ID"),
+              names_from = Lab_Component_Name,
+              names_glue = "{Lab_Component_Name}_day",
+              values_from = Days_after_admission_collected,
+              values_fill = NA,
+              values_fn = first)
+
+# merge lab value and lab date data
+labsW <- merge(x = labsW_values,
+                y = labsW_dates,
+             by = c("Patient_ID", "Infection_ID"),
+             all.x = TRUE,
+             sort = TRUE)
+
+# sort columns alphabetically in the new dataframe
+labsW <- labsW %>% select(order(colnames(.)))
+
+# merge the lab data
+dat <- merge(x = dat,
+             y = labsW,
+             by = c("Patient_ID", "Infection_ID"),
+             all.x = TRUE)
+
+# cleanup
+remove(labsW, labs2, labsW_dates, labsW_values)
+```
+
+## Widen & merge hepatitis test data
+
+```{r}
+# fix hep_tests dataset for best results when widening:
+
+# 1 correct typo in hep_tests dataset; 'HEB P DNA QUANT' is a typo of 'HEP B DNA QUANT'
+hep_tests$Lab_Component_Name <- str_replace_all(hep_tests$Lab_Component_Name,
+                                                pattern = "HEB P DNA QUANT",
+                                                replacement = "HEP B DNA QUANT")
+
+hep_tests <- hep_tests %>%
+  # 2 remove empty rows:
+  filter(is.na(Lab_Component_Result_Value) == FALSE) %>%
+  # 3 label if repeat labs differ from the previous result
+  group_by(Patient_ID, Infection_ID, Lab_Component_Name) %>%
+  mutate(repeated = row_number()) %>%
+  arrange(Infection_ID, Lab_Component_Name) %>%
+  mutate(lag_result = ifelse(repeated == 1,
+                             NA,
+                             lag(Lab_Component_Result_Value,
+                                 n = 1,
+                                 order_by = Infection_ID))) %>%
+  mutate(different = ifelse(repeated == 1,
+                          NA,
+                          ifelse(lag_result == Lab_Component_Result_Value, 0, 1))) %>%
+  # 4 label repeated tests:
+  mutate(Lab_Component_Name = ifelse(repeated == 1,
+                                     Lab_Component_Name,
+                                     paste(Lab_Component_Name, repeated)))
+
+# check if any of the repeated labs show different results
+sum(hep_tests$different, na.rm = TRUE)
+# 0 differing repeat lab results
+
+# widen
+hepW <- hep_tests %>%
+  pivot_wider(id_cols = c("Patient_ID", "Infection_ID"),
+              names_from = Lab_Component_Name,
+              values_from = Lab_Component_Result_Value,
+              values_fill = NA,
               names_sort = TRUE)
-# merge the hepatitis data
+
+# merge the widened hepatitis test data
 dat <- merge(x = dat,
              y = hepW,
              by = c("Patient_ID", "Infection_ID"),
              all.x = TRUE)
+
 # cleanup
 remove(hepW, hep_tests)
 ```
 
-## Widen & merge vaccine data
+## Widen & merge hospital vaccine adminisration data
+
+### Examining vaccines administered & sites of vaccaination
 
 Tabulating vaccines administered in-hospital:
 
 ```{r}
-table(vaccine2$Generic_Name)
+vaccine2 %>%
+  filter(!is.na(Generic_Name)) %>%
+  group_by(Generic_Name) %>%
+  summarize(N = n())
 ```
 
+Tabulating vaccines ordered/administered in all locations:
+
 ```{r}
-# recode a brand name variable for differently named generic drugs
+# tabulating all ordered vaccines
+vaccine %>%
+  group_by(Generic_Name) %>%
+  summarize(N = n())
+# tabulating all administered vaccines
+vaccine %>%
+  filter(!is.na(Administration_Date__Sorting_)) %>%
+  group_by(Generic_Name) %>%
+  summarize(N = n())
+```
+
+Results:
+ * The first two products are Twinrix (3 dose series)
+ * the third and fourth products are Havrix (requiring two doses 6-12 months apart)
+ * 'hepatitis A virus vaccine (PF) 50 unit/mL intramuscular suspension' is Vaqta (requiring two doses 6-18 months apart)
+ * both HBV 'CpG 1018' are Heplisav-B (two dose series, 1 month apart)
+ * 'hepatitis B virus vaccine recomb (PF) 10 mcg/0.5 mL IM syringe' is the pediatric dose of Engerix-B
+ * the last two products are the adult dose of Engerix-B (3 dose series); none of the above products are consistent with Recombivax, and PreHevbrio was not yet approved.
+
+Examining department names considered to be in hospital vs all departments:
+
+```{r}
+hosp_dpts <- vaccine2 %>%
+  group_by(Department_Name) %>%
+  filter(!is.na(Generic_Name)) %>%
+  summarize(N = n())
+all_dpts <- vaccine %>%
+  group_by(Department_Name) %>%
+  summarize(N = n())
+hosp_dpts
+all_dpts
+all_dpts %>%
+  filter(!(Department_Name %in% hosp_dpts$Department_Name))
+```
+
+### Widen & merge vaccines administered in hospital:
+
+```{r}
+# fix vaccine administration dataset for best results when widening
+
+# 1 recode a brand name variable for differently named generic drugs
 vaccine2$brand <- recode(vaccine2$Generic_Name,
                          "hepatitis A vaccine (PF) 1,440 ELISA unit/mL intramuscular syringe" = "Havrix",
                          "hepatitis A virus vaccine (PF) 1,440 ELISA unit/mL IM suspension" = "Havrix",
                          "hepatitis B vaccine 20 mcg/0.5 mL-adjuvant CpG 1018 (PF) IM solution" = "HeplisavB",
                          "hepatitis B vaccine 20 mcg/0.5 mL-adjuvant CpG 1018 (PF) IM syringe" = "HeplisavB",
                          "hepatitis B virus vaccine recomb (PF) 20 mcg/mL intramuscular susp" = "EngerixB")
+vaccine2 <- vaccine2 %>%
+  # 2 remove empty rows & unused columns
+  filter(is.na(Generic_Name) == FALSE) %>%
+  select(Patient_ID, Infection_ID, brand, admin_date_admission_date) %>%
+  # 3 label repeat vaccinations
+  group_by(Patient_ID, Infection_ID, brand) %>%
+  mutate(repeated = row_number()) %>%
+  arrange(Infection_ID, brand) %>%
+  mutate(prev_day = ifelse(
+    repeated == 1,
+    NA,
+    lag(admin_date_admission_date,
+        n = 1,
+        order_by = Infection_ID))) %>%
+  # 4 determine if administration is not valid based on sufficient time from initial vaccination
+  mutate(invalid = case_when(
+    brand == "Havrix" & admin_date_admission_date - prev_day > 175 ~ 0,
+    brand == "Havrix" & admin_date_admission_date - prev_day <= 175 ~ 1,
+    brand == "HeplisavB" & admin_date_admission_date - prev_day > 26 ~ 0,
+    brand == "HeplisavB" & admin_date_admission_date - prev_day <= 26 ~ 1,
+    brand == "EngerixB" & admin_date_admission_date - prev_day > 26 ~ 0,
+    brand == "EngerixB" & admin_date_admission_date - prev_day <= 26 ~ 1
+  )) %>%
+  # 5 label repeated tests:
+  mutate(brand = ifelse(
+    repeated == 1,
+    brand,
+    paste(brand, repeated)))
+
+# check if any of the repeated vaccines are invalid
+sum(vaccine2$invalid, na.rm = TRUE)
+# 0 invalid vaccine administrations 
 
 # widen
 vaccineW2 <- vaccine2 %>%
-  filter(is.na(Generic_Name) == FALSE) %>%
   pivot_wider(
     id_cols =  c("Patient_ID", "Infection_ID"),
     names_from = brand,
     values_from = admin_date_admission_date,
     values_fill = NA,
     names_sort = TRUE
-)
-
-# convert NULL to NA
-vaccineW2$EngerixB[vaccineW2$EngerixB == "NULL"] <- NA
-vaccineW2$Havrix[vaccineW2$Havrix == "NULL"] <- NA
-vaccineW2$HeplisavB[vaccineW2$HeplisavB == "NULL"] <- NA
+    )
 
 # merge
 dat <- merge(x = dat,
@@ -301,13 +467,169 @@ dat <- merge(x = dat,
              all.x = TRUE)
 
 # cleanup
-remove(vaccineW2)
+remove(vaccineW2, vaccine2)
 ```
 
+## Widen vaccine ordering/administration data
 
-## Widen & merge vaccine ordering/administration data
+This is for all sites, not just in the hospital.
 
+```{r}
+# recode a brand name variable for differently named generic drugs
+vaccine$brand <- recode(vaccine$Generic_Name,
+                        "hepatitis A and B virus vaccine(PF) 720 ELISA unit-20 mcg/mL IM susp" = "Twinrix",
+                        "hepatitis A and B virus vaccine(PF)720 ELISA unit-20 mcg/mL IM syringe" = "Twinrix",
+                        "hepatitis A vaccine (PF) 1,440 ELISA unit/mL intramuscular syringe" = "Havrix",
+                        "hepatitis A virus vaccine (PF) 1,440 ELISA unit/mL IM suspension" = "Havrix",
+                        "hepatitis A virus vaccine (PF) 50 unit/mL intramuscular suspension" = "Vaqta",
+                        "hepatitis B vaccine 20 mcg/0.5 mL-adjuvant CpG 1018 (PF) IM solution" = "HeplisavB",
+                        "hepatitis B vaccine 20 mcg/0.5 mL-adjuvant CpG 1018 (PF) IM syringe" = "HeplisavB",
+                        "hepatitis B virus vaccine recomb (PF) 10 mcg/0.5 mL IM syringe" = "EngerixB_peds",
+                        "hepatitis B virus vaccine recomb (PF) 20 mcg/mL intramuscular susp" = "EngerixB",
+                        "hepatitis B virus vaccine recomb (PF) 20 mcg/mL intramuscular syringe" = "EngerixB")
+# tabulate vaccines ordered by brand
+vaccine %>%
+  group_by(brand) %>%
+  summarize(N = n())
+```
 
+Get info on admission dates to help estimate if administration was before or after admission:
+
+```{r}
+dates <- dat %>%
+  select(Patient_ID, Infection_ID, Year_of_Admission, i1, i2, i3) %>%
+  group_by(Patient_ID) %>%
+  mutate(
+    i1_year = min(Year_of_Admission),
+    i2_year = ifelse(
+      is.na(i2), 
+      NA,
+      ifelse(
+        is.na(i3),
+        max(Year_of_Admission),
+        median(Year_of_Admission)
+      )),
+    i3_year = ifelse(
+      is.na(i3),
+      NA,
+      max(Year_of_Admission)
+    )
+  ) %>% 
+  filter(Infection_ID == i1)
+```
+
+Incorporate admission date info
+
+```{r}
+# merge date info into vaccine admin dataset
+vaccine_dates <- merge(
+  x = vaccine,
+  y = dates,
+  by = "Patient_ID"
+) %>%
+  mutate(
+    # add administration year and Infection_ID
+    admin_year = year(Administration_Date__Sorting_),
+    # set Infection_ID to the first one, for simplicity
+    Infection_ID = i1,
+    # indicate if vaccine was given out of hospital; 0 if in hospital, 1 otherwise
+    loc_ooh = ifelse(vaccine$Department_Name %in% hosp_dpts$Department_Name, 0, 1),
+    # indicate if vaccine was administered or not
+    admin_y_n = ifelse(is.na(Administration_Date__Sorting_), 0, 1),
+    # indicate if vaccine was administered before admission to hospital
+    before_hospitalization = ifelse(admin_year < i1_year, 1,0)
+  ) %>%
+  # annotate repeated vaccines
+  group_by(Patient_ID, brand) %>%
+  mutate(repeated = row_number()) %>%
+  arrange(Patient_ID, brand) %>%
+  # 5 label repeated tests:
+  mutate(brand = ifelse(
+    repeated == 1,
+    brand,
+    paste(brand, repeated)))
+  
+
+# widen
+vaccineW <- vaccine_dates %>%
+  # filter(loc == 1) %>%
+  pivot_wider(
+    id_cols =  c("Patient_ID"),
+    names_from = brand,
+    names_glue = "{brand}_ooh",
+    values_from = Administration_Date__Sorting_,
+    values_fill = NA,
+    names_sort = TRUE,
+    # values_fn = first
+)
+
+# Note that this dataset is only for ancilliary results, and will not be merged, presently (uncomment this section to merge)
+# # merge
+# dat <- merge(x = dat,
+#              y = vaccineW,
+#              by = c("Patient_ID"),
+#              all.x = TRUE)
+
+# cleanup
+remove(vaccineW, vaccine, all_dpts, hosp_dpts, dates)
+```
+
+## Widen & merge allergy data
+
+Yeast allergy is a contraindication to all available HBV vaccines, with the exception of PreHevbrio; while aminoglycoside allergy is a contraindication only to Twinrix.  Of the allergens listed in the dataset, gentamycin is an aminoglycoside, with high crossreactivity to neomycin (the preservative in Twinrix), and the PCV-13 vaccine is also a yeast-derived vaccine, and could presumably cause cross reaction with non-PreHevbrio HBV vaccines.
+
+```{r}
+allergyW <- pivot_wider(allergy,
+                        id_cols = Patient_ID,
+                        names_from = Allergen_Name,
+                        values_from = Allergy_First_Reaction,
+                        names_sort = TRUE,
+                        values_fn = list)
+
+#Deriving yeast allergy data from PCV-13 allergy:
+allergyW$yeast_allergy <- ifelse(allergyW$`PNEUMOC 13-VAL CONJ-DIP CR(PF)` == "NULL", 0, 1)
+
+#Deriving aminoglycoside allergy data from gentamycin allergy:
+allergyW$ag_allergy <- ifelse(allergyW$GENTAMICIN == "NULL", 0, 1)
+```
+
+We can now examine how many individuals have each allergy
+
+```{r}
+sum(allergyW$ag_allergy)
+sum(allergyW$yeast_allergy)
+```
+
+Only one of each.  We can now examine the reactions to each:
+
+```{r}
+allergyW[allergyW$yeast_allergy == 1,]$`PNEUMOC 13-VAL CONJ-DIP CR(PF)`
+allergyW[allergyW$ag_allergy == 1,]$GENTAMICIN
+```
+
+Which patients had the allergy? (can be uncommented)
+
+```{r}
+# allergyW[allergyW$yeast_allergy == 1,]$Patient_ID
+# allergyW[allergyW$ag_allergy == 1,]$Patient_ID
+```
+
+The patient with 'allergy' to the PCV13 vaccine experienced pruritis (a common, >10%, reaction to this vaccine), whereas the patient with aminoglycoside allergy experienced hives.  An IgE mediated reaction to PCV-13 may be considered a contraindication to HBV vaccination, as common ingredients are shared, but pruritis does not qualify. Havrix, Vaqta, and Twinrix contain neomycin, which may cross-react with gentamycin; thus this patient should not receive HAV vaccination.  
+
+We can now join this data into the main dataset:
+
+```{r}
+dat <- merge(x = dat, 
+             y = select(.data = allergyW,
+                            Patient_ID, 
+                            ag_allergy,
+                            yeast_allergy),
+             by = "Patient_ID",
+             all.x = TRUE)
+
+# cleanup
+remove(allergyW, allergy)
+```
 
 ## Clean the full dataset
 
@@ -327,78 +649,168 @@ names(dat) <- str_remove(string = names(dat),
 Replacing NULL values with NA
 
 ```{r}
-dat <- dat %>% replace(.=="NULL", NA)
+dat <- dat %>% 
+  # select(!(EngerixB_ooh:Twinrix_ooh)) %>%
+  replace(.=="NULL", NA)
 ```
 
 # Exposure Variables
 
-## HCV
+## HCV recode
+
+### Initial Encoding
+
+Initial encoding from `hcv_ab_or_pcr_positive` variable in the main dataset; note that the hcv_ab_or_pcr_positive__0_no__1_ variable from the chart review data is largely similar.
 
 ```{r}
-dat$hcv <- recode_factor(dat$`hcv_ab_or_pcr_positive`,
+dat$HCV <- recode_factor(dat$`hcv_ab_or_pcr_positive`,
                          '0' = "HCV-",
                          '1' = "HCV+")
+table(dat$hcv_ab_or_pcr_positive, dat$HCV, useNA = "ifany")
+# table(dat$hcv_ab_or_pcr_positive__0_no__1_, dat$hcv_ab_or_pcr_positive, useNA = "ifany")
 ```
 
-We can validate this data by cross-tabulation with chart-review data.  First we can find those patients with positive HCV Ab or HCV DNA:
+### Validation
+
+This can be validated against HCV status at admission, HCV PCR, and HCV Ab values from the chart review data:
 
 ```{r}
-# Uncomment to tabulate HCV PCR & Ab results individually 
-# table(dat$HCVAb_Result, useNA = "ifany")
-# table(dat$HCV_PCR_result, useNA = "ifany")
+# HCV Ab cross-tab
+table(dat$HCVAb_Result, dat$HCV, useNA = "ifany")
+# HCV PCR cross-tab
+table(dat$HCV_PCR_result, dat$HCV, useNA = "ifany")
+# HCV status at admission
+table(dat$HCV_status_at_admission, dat$HCV, useNA = "ifany")
+```
 
+The HCV variable from the main dataset is discordant with all three other HCV variables; We can also examine if a combination of PCR and Ab results rectifies the discordance
+
+```{r}
+# creating 'hcv2' as the combined variable with a value of 1 if either are positive, or 0 if one is negative
 dat$hcv2 <- NA
 dat$hcv2[dat$HCVAb_Result == "Not Detected" | dat$HCVAb_Result == "Negative" | dat$HCVAb_Result == "Indeterminate; confirmation to follow"| dat$HCV_PCR_result == 0] <- 0
 dat$hcv2[dat$HCVAb_Result == "Detected" | dat$HCVAb_Result == "Positive" | dat$HCV_PCR_result == 1] <- 1
 
-table(dat$hcv2, dat$HCVAb_Result, useNA = "ifany")
-table(dat$hcv2, dat$hcv, useNA = "ifany")
+# How many patients have neither HCV PCR nor Ab tests?
+sum(is.na(dat$HCV_PCR_result) & is.na(dat$HCVAb_Result))
+
+# looking first at Ab vs PCR tabulation
+table(dat$HCVAb_Result, dat$HCV_PCR_result, useNA = "ifany")
+table(dat$hcv2, useNA = "ifany")
+table(dat$hcv2, dat$HCV, useNA = "ifany")
 ```
 
-### Discordance
+Cross tabulation still shows discordant observations.
+
+### Composite HCV variable
+
+We can produce a variable encompassing any evidence of lifetime HCV exposure from multiple sources:
+  * `hcv_ab_or_pcr_positive` variable in the main dataset
+  * HCV Ab result
+  * HCV PCR result
+  * HCV status at admission
+This variable will be 1 if any of the above show evidence of lifetime HCV exposure, and 0 otherwise.
+
+First we can recode 'HCVAb_Result' & 'HCV_status_at_admission' variables for ease of use:
 
 ```{r}
-table(dat$hcv2, dat$hcv, useNA = "ifany")
+# HCVAb_Result recode
+dat$hcv_ab <- recode_factor(
+  dat$HCVAb_Result,
+  "Detected" = "Positive",
+  "Indeterminate; confirmation to follow" = "Negative",
+  "Not Detected" = "Negative"
+)
+table(dat$HCVAb_Result, dat$hcv_ab, useNA = "ifany")
+
+# HCV_status_at_admission recode
+dat$hcv_exposure <- recode_factor(
+  dat$HCV_status_at_admission,
+ "No prior positive HCV test" = "unexposed", 
+  .default = "exposed"
+)
+table(dat$HCV_status_at_admission, dat$hcv_exposure, useNA = "ifany")
 ```
 
-There is not complete concordance in this encoding.  We can also consider HCV status at admission, to see if this will rectify it:
+Now to recode the HCV variable:
 
 ```{r}
-table(dat$HCV_status_at_admission, useNA = "ifany")
-table(dat$HCV_status_at_admission, dat$hcv2, useNA = "ifany")
-dat$hcv3 <- 0 # dat$hcv2
-dat$hcv3[dat$HCV_status_at_admission != "No prior positive HCV test"] <- 1
-table(dat$hcv2, dat$hcv3, useNA = "ifany")
-table(dat$hcv, dat$hcv3, useNA = "ifany")
-```
-
-Now we can combine the HCV chart lab data with the main dataset
-
-```{r}
-dat$hcv4 <- dat$hcv
-
-# incorporating the new HCV Ab & PCR info from the hcv2 variable:
-dat$hcv4[is.na(dat$hcv4) & dat$hcv2 == 0] <- "HCV-"
-dat$hcv4[dat$hcv2 == 1] <- "HCV+"
+# Start with HCV exposure at admission
+dat$hcv <- dat$hcv_exposure
 table(dat$hcv, useNA = "ifany")
-table(dat$hcv2, dat$hcv, useNA = "ifany")
-table(dat$hcv4, dat$hcv, useNA = "ifany")
-table(dat$hcv4, useNA = "ifany")
+
+# incorporate `hcv_ab_or_pcr_positive` variable in the main dataset
+# table(dat$HCV, dat$hcv, useNA = "ifany")
+dat$hcv[dat$HCV == "HCV+"] <- "exposed"
+table(dat$HCV, dat$hcv, useNA = "ifany")
+
+# incorporate Ab result
+# table(dat$hcv_ab, dat$hcv, useNA = "ifany")
+dat$hcv[dat$hcv_ab == "Positive"] <- "exposed"
+table(dat$hcv_ab, dat$hcv, useNA = "ifany")
+
+# incorporate PCR result
+# table(dat$HCV_PCR_result, dat$hcv, useNA = "ifany")
+dat$hcv[dat$HCV_PCR_result == 1] <- "exposed"
+table(dat$HCV_PCR_result, dat$hcv, useNA = "ifany")
+
+
+table(dat$hcv, useNA = "ifany")
 ```
 
-We can now combine the HCV chart clinical status prior to admission data with the main dataset
+### Examining the composite variable
+
+We can now tabulate how our HCV exposed subset was categorized at admission
 
 ```{r}
-table(dat$hcv4, useNA = "ifany")
-table(dat$hcv3, dat$hcv4, useNA = "ifany")
-dat$hcv4[is.na(dat$hcv4) & dat$hcv3 == 0] <- "HCV-"
-dat$hcv4[dat$hcv3 == 1] <- "HCV+"
-table(dat$hcv3, dat$hcv, useNA = "ifany")
-table(dat$hcv4, dat$hcv, useNA = "ifany")
-table(dat$hcv4, useNA = "ifany")
+table(dat$HCV_status_at_admission, dat$hcv, useNA = "ifany")
 ```
 
-This produces a combined HCV+ variable (a composite of the chart review data, HCV lab data, and HCV status prior to admission) with no missing values.
+As we can see, 32 admissions with no prior positive HCV test were reclassified, and most of the exposed have chronic untreated HCV.  Let's examine the breakdown of HCV exposures among initial infections.
+
+```{r}
+dat %>%
+  # select initial infections with evidence of HCV exposure only
+  filter(Infection_ID == i1 & hcv == "exposed") %>%
+  # group by HCV status & summarize
+  group_by(HCV_status_at_admission) %>%
+  summarize(N = n()) %>%
+  mutate(Percent = round(100*N/sum(N), digits = 1))
+
+# ucomment to tabulate full cohort
+# dat %>%
+#   # select initial infections with evidence of HCV exposure only
+#   filter(Infection_ID == i1) %>%
+#   # group by HCV status & summarize
+#   group_by(HCV_status_at_admission) %>%
+#   summarize(N = n()) %>%
+#   mutate(Percent = round(100*N/sum(N), digits = 1))
+```
+
+We can also examine the 32 patients who were reclassified:
+
+```{r}
+dat %>%
+  filter(Infection_ID == i1) %>%
+  filter(hcv == "exposed" & hcv_exposure == "unexposed") %>%
+  # group by HCV PCR & Ab variable from the main dataset
+  group_by(HCV) %>%
+  summarize(N = n())
+
+dat %>%
+  filter(Infection_ID == i1) %>%
+  filter(hcv == "exposed" & hcv_exposure == "unexposed") %>%
+  # group by HCV PCR & Ab variable from the main dataset
+  group_by(hcv_ab) %>%
+  summarize(N = n())
+
+dat %>%
+  filter(Infection_ID == i1) %>%
+  filter(hcv == "exposed" & hcv_exposure == "unexposed") %>%
+  # group by HCV PCR & Ab variable from the main dataset
+  group_by(HCV_PCR_result) %>%
+  summarize(N = n())
+```
 
 ## Homeless
 
@@ -406,9 +818,12 @@ This produces a combined HCV+ variable (a composite of the chart review data, HC
 dat$homeless <- recode_factor(dat$`housing`,
                        '0' = "Housed",
                        '1' = "Homeless")
+table(dat$homeless, dat$housing, useNA = "ifany")
 ```
 
 ## IVDU
+
+The IV drug use exposure variable is a composite of IV drug use of any kind.  The dataset includes routes of administration for opioid, cocaine and methamphetamine use.  Other substances used were collected in the dataset; and those who used other substances via IV also used either opioids, cocaine or methamphetamine IV.
 
 ```{r}
 dat$ivdu <- 0
@@ -419,6 +834,32 @@ dat$ivdu <- factor(dat$ivdu,
                    levels = c(0,1),
                    labels = c("No Known IVDU", "IVDU"),
                    ordered = TRUE)
+
+table(dat$ivdu, useNA = "ifany")
+
+dat %>%
+  # select initial infections with evidence of HCV exposure only
+  filter(Infection_ID == i1 & ivdu == "IVDU") %>%
+  # group by HCV status & summarize
+  group_by(opioid_used) %>%
+  summarize(N = n()) %>%
+  mutate(Percent = round(100*N/sum(N), digits = 1))
+
+dat %>%
+  # select initial infections with evidence of HCV exposure only
+  filter(Infection_ID == i1 & ivdu == "IVDU") %>%
+  # group by HCV status & summarize
+  group_by(methamphetamine_used) %>%
+  summarize(N = n()) %>%
+  mutate(Percent = round(100*N/sum(N), digits = 1))
+
+dat %>%
+  # select initial infections with evidence of HCV exposure only
+  filter(Infection_ID == i1 & ivdu == "IVDU") %>%
+  # group by HCV status & summarize
+  group_by(cocaine_used) %>%
+  summarize(N = n()) %>%
+  mutate(Percent = round(100*N/sum(N), digits = 1))
 ```
 
 # Covariates
@@ -427,7 +868,13 @@ dat$ivdu <- factor(dat$ivdu,
 
 ```{r}
 dat$age <- dat$age_at_admission
+summary(dat$age)
+summary(dat$age[dat$first_infection == TRUE])
+```
+The missing age value can be imputed from the other age/infection info for the patient (although this isn't absolutely necessary as this missing value is not for an initial admission):
 
+```{r}
+dat$age[dat$Infection_ID == 1213] <- 51
 summary(dat$age)
 ```
 
@@ -445,10 +892,42 @@ dat$gender <- factor(dat$gender,
 # gender variable for T1
 dat$genderM <- ifelse(dat$gender == "Male", 1, 0)
 
-summary(dat$gender)
+table(dat$gender[dat$first_infection == TRUE], useNA = "ifany")
+
+dat %>%
+  filter(first_infection == TRUE) %>%
+  group_by(gender) %>%
+  summarize(N = n()) %>%
+  mutate(Percent = round(100*N/sum(N), digits = 1))
 ```
 
+Missing values for gender will need to be imputed
+
 ## Race/Ethnicity
+
+Initial exploration of race and ethnicity data
+
+```{r}
+table(dat$race, dat$ethnicity, useNA = "ifany")
+```
+
+We can simplify this by collapsing 'declined' and 'unknown' into NA values:
+
+```{r}
+dat$race2 <- dat$race
+dat$race2[dat$race == "declined" | dat$race == "unknown"] <- NA
+# table(dat$race, dat$race2, useNA = "ifany")
+
+dat$eth2 <- dat$ethnicity
+dat$eth2[dat$ethnicity == "declined" | dat$ethnicity == "unknown"] <- NA
+# table(dat$ethnicity, dat$eth2, useNA = "ifany")
+
+# table(dat$race2, dat$eth2, useNA = "ifany")
+# tabulating only first admissions:
+table(dat$race2[dat$first_infection == TRUE], dat$eth2[dat$first_infection == TRUE], useNA = "ifany")
+```
+
+Accordingly, a composite race & ethnicity variable can be created as follows:
 
 ```{r}
 dat$race_eth <- NA
@@ -461,7 +940,14 @@ dat$race_eth[dat$race == "other pacific islander"] <- 6
 dat$race_eth <- factor(dat$race_eth,
                        levels = 1:6,
                        labels = c("White", "Black", "Hispanic White", "AI/AN", "Asian", "Pacific Islander"))
-table(dat$race_eth, useNA = "ifany")
+# table(dat$race_eth, useNA = "ifany")
+table(dat$race_eth[dat$first_infection == TRUE], useNA = "ifany")
+
+dat %>%
+  filter(first_infection == TRUE) %>%
+  group_by(race_eth) %>%
+  summarize(N = n()) %>%
+  mutate(Percent = round(100*N/sum(N), digits = 1))  
 ```
 
 Create collapsed reace/eth for T1:
@@ -537,56 +1023,11 @@ rm(hiv_discordance_subset)
 
 Undetectable viral load on a quantitative PCR test is consistent with the above hypothesis that the discordant observation may be due to undetectable viral load during treatment.
 
-## Allergies
-
-Yeast allergy is a contraindication to all available HBV vaccines, with the exception of PreHevbrio; while aminoglycoside allergy is a contraindication only to Twinrix.  Of the reactions listed in the dataset, gentamycin is an aminoglycoside, with high crossreactivity to neomycin (the preservative in Twinrix), and the PCV-13 vaccine is also a yeast-derived vaccine, and could presumably cause cross reaction.
-
-```{r}
-allergyW <- pivot_wider(allergy,
-                        id_cols = Patient_ID,
-                        names_from = Allergen_Name,
-                        values_from = Allergy_First_Reaction,
-                        names_sort = TRUE)
-
-#Deriving yeast allergy data from PCV-13 allergy:
-allergyW$yeast_allergy <- ifelse(allergyW$`PNEUMOC 13-VAL CONJ-DIP CR(PF)` == "NULL", 0, 1)
-
-#Deriving aminoglycoside allergy data from gentamycin allergy:
-allergyW$ag_allergy <- ifelse(allergyW$GENTAMICIN == "NULL", 0, 1)
-```
-
-We can now examine how many individuals have each allergy
-
-```{r}
-sum(allergyW$ag_allergy)
-sum(allergyW$yeast_allergy)
-```
-
-Only one of each.  We can now examine the reactions to each:
-
-```{r}
-allergyW[allergyW$yeast_allergy == 1,]$`PNEUMOC 13-VAL CONJ-DIP CR(PF)`
-allergyW[allergyW$ag_allergy == 1,]$GENTAMICIN
-```
-
-The patient with 'allergy' to the PCV13 vaccine experienced pruritis (a common, >10%, reaction to this vaccine), whereas the patient with aminoglycoside allergy experienced hives.  An IgE mediated reaction to PCV-13 may be considered a contraindication to HBV vaccination, as common ingredients are shared, but pruritis does not qualify. Havrix contains neomycin, which may cross-react with gentamycin.  We can now join this data into the main dataset:
-
-```{r}
-dat <- merge(x = dat, 
-             y = select(.data = allergyW,
-                            Patient_ID, 
-                            ag_allergy,
-                            yeast_allergy),
-             by = "Patient_ID",
-             all.x = TRUE)
-
-# cleanup
-remove(allergyW, allergy)
-```
-
 ## FIB-4 & liver biomarkers
 
-We can find the FIB-4 initial values of the relevant labs (AST, ALT, platelets)
+### FIB-4
+
+We can find the FIB-4 initial values of the relevant labs (AST, ALT, platelets).  NB we are not looking at the platelet clumper protocol info here as these values are weeks after the initial admission.
 
 ```{r}
 dat$alt_f <- lapply(dat$`ALT (SGPT)`, FUN = first) %>% str_remove(pattern = "[:symbol:]") %>% as.numeric() 
@@ -596,7 +1037,20 @@ dat$plt_f <- lapply(dat$`PLATELET COUNT`, FUN = first) %>% str_remove(pattern = 
 dat$fib_4 <- dat$age * dat$ast_f * (dat$alt_f)^-0.5 / dat$plt_f
 
 summary(dat$fib_4)
+summary(dat$fib_4[dat$first_infection == TRUE])
 ```
+
+For consistency we can look at when the labs were taken:
+
+```{r}
+summary(dat$`AST(SGOT)_day`)
+summary(dat$`ALT (SGPT)_day`)
+summary(dat$`PLATELET COUNT_day`)
+```
+
+For the vast majority, the relevant labs were drawn simultaneously on day 0.
+
+### Other liver biomarkers
 
 For HAV we want to look at the case criteria for HAV; including total bilitubin > 3.0 mg/dL or ALT > 200 IU/L (https://www.cdc.gov/hepatitis/hav/havfaq.htm).
 
@@ -618,9 +1072,9 @@ IG-M is not for screening; NB HEPATITIS A AB TOTAL is an old name for HEPATITIS 
 table(is.na(dat$`HEPATITIS A AB TOTAL`), is.na(dat$`HEPATITIS A IGG`))
 
 dat$hav_screen <- ifelse(!(is.na(dat$`HEPATITIS A AB TOTAL`) & is.na(dat$`HEPATITIS A IGG`)),1,0)
-table(dat$hav_screen, is.na(dat$`HEPATITIS A AB TOTAL`))
-table(dat$hav_screen, is.na(dat$`HEPATITIS A IGG`))
-table(dat$hav_screen)
+table(dat$hav_screen, is.na(dat$`HEPATITIS A AB TOTAL`), useNA = "ifany")
+table(dat$hav_screen, is.na(dat$`HEPATITIS A IGG`), useNA = "ifany")
+table(dat$hav_screen, useNA = "ifany")
 ```
 
 ## HAV Vaccination
@@ -628,8 +1082,10 @@ table(dat$hav_screen)
 
 ```{r}
 dat$hav_vaccine <- ifelse(is.na(dat$Havrix), 0, 1)
-table(dat$hav_vaccine)
+table(dat$hav_vaccine, useNA = "ifany")
 ```
+
+17 patients were vaccinated during hospitalization.
 
 ## HBV Screening
 
@@ -649,44 +1105,52 @@ dat$hbv_screen_CDC <- ifelse(
   (!is.na(dat$`HEP B SURFACE AG`) | !is.na(dat$`HEPATITIS B SURFACE AG, SERUM`)) & (!is.na(dat$`HEP B CORE AB`) | !is.na(dat$`HEP B SURFACE AB QUAL`) | !is.na(dat$`HEP B SURFACE AB QUAL, SERUM`) | !is.na(dat$`HEPATITIS B CORE AB, SERUM`)),
   1, 0)
 
-table(dat$hbv_screen_any)
-table(dat$hbv_screen_any, dat$hbv_sag)
-table(dat$hbv_screen_any, dat$hbv_screen_CDC)
+table(dat$hbv_screen_any, useNA = "ifany")
+table(dat$hbv_screen_any, dat$hbv_sag, useNA = "ifany")
+table(dat$hbv_screen_any, dat$hbv_screen_CDC, useNA = "ifany")
+
+table(dat$hbv_screen_CDC, useNA = "ifany")
 ```
+
+123 were screened as per CDC guidance.  NB 'hbv_screen_CDC' will be the outcome measure of interest.
 
 ## HBV Vaccination
 
 ```{r}
 dat$hbv_vaccine <- ifelse(is.na(dat$EngerixB) & is.na(dat$HeplisavB), 0, 1)
-table(dat$hbv_vaccine)
+table(dat$hbv_vaccine, useNA = "ifany")
 ```
+
+31 received HBV vaccination.
 
 ## HDV Screening
 
 ```{r}
 dat$hdv_screen <- ifelse(is.na(dat$`HEP DELTA AB`),0,1)
-table(dat$hdv_screen)
+table(dat$hdv_screen, useNA = "ifany")
 ```
+
+1 of 6 patients with HBV received HDV screening.
 
 # Misc Variables
 
 ## HBV Status
 
-defined as positive if HBV DNA or HBSag is detected
+Defined as positive if HBV DNA or HBSag is detected
 
 ```{r}
-dat$hbv_status <- ifelse(dat$`HEP B DNA QUANT IU, VALUE` > 10 | dat$`HEP B DNA QUAL` == "Detected" | dat$`HEP B DNA QUANT IU, VALUE` > 10 | lapply(dat$`HEP B SURFACE AG`, first) == "Detected" | lapply(dat$`HEPATITIS B SURFACE AG, SERUM`, first) == "Positive" ,1,0)
+dat$hbv_status <- ifelse(dat$`HEP B DNA QUAL` == "Detected" | dat$`HEP B DNA QUANT IU, VALUE` > 10 | lapply(dat$`HEP B SURFACE AG`, first) == "Detected" | lapply(dat$`HEPATITIS B SURFACE AG, SERUM`, first) == "Positive" ,1,0)
 dat$hbv_status[is.na(dat$hbv_status)] <- 0
-table(dat$hbv_status)
+table(dat$hbv_status, useNA = "ifany")
 ```
+
+This code lets us see which patients are included
 
 ```{r}
-d2 <- dat %>%
-  filter(hbv_status == 1)
-head(d2)
+# d2 <- dat %>%
+#   filter(hbv_status == 1)
+# head(d2)
 ```
-
-
 
 # Table 1
 
@@ -722,7 +1186,7 @@ statistic_list <- list(
 title <- "**Table 1. Patient Characteristics**"
 
 # subset dataframe to include only data from first admissions
-dat_t1 <- subset(dat, Infection_ID == first)
+dat_t1 <- subset(dat, first_infection == TRUE)
 
 # Set the gtsummary theme:
 theme_gtsummary_journal(journal = "jama")
@@ -741,9 +1205,9 @@ t1_overall <- dat_t1 %>%
   ) 
 
 t1_hcv <- dat_t1 %>%
-  select(hcv4, variables) %>%
+  select(hcv, variables) %>%
   tbl_summary(
-    by = hcv4,
+    by = hcv,
     digits = digits_list,
     label = label_list,
     statistic = statistic_list,
@@ -788,7 +1252,7 @@ remove(digits_list, label_list, statistic_list, t1_hcv, t1_homeless, t1_ivdu, t1
 
 ## T1
 
-```{r}
+```{r width = 900}
 t1_merge
 ```
 
@@ -855,7 +1319,7 @@ table(dat$hbv_status, dat$hdv_screen)
 
 One in six were screened for HDV.
 
-## Proportion of returning vaccinated patients receiving additiona HBV vaccine dose
+## Proportion of returning vaccinated patients receiving additional HBV vaccine dose
 
 
 
@@ -865,11 +1329,24 @@ One in six were screened for HDV.
 
 ## Use of Accelerated Dosing
 
-No accelerated dosing observed.
+No accelerated dosing observed in hospital immunizations.
+
+
+# Save the dataset
+
+```{r}
+saveRDS(dat, file = "data/dat.Rds")
+```
+
+# Session Info
+
+```{r}
+sessionInfo()
+```
 
 # Old Unused Code
 
-lapply(dat$`HEP B SURFACE AB QUAL`, first) == "Detected" | dat$`HEP B SURFACE AB QUAL, SERUM` == "Reactive"
+Importing data
 
 ```{r}
 # # Import the main dataset
@@ -889,3 +1366,176 @@ lapply(dat$`HEP B SURFACE AB QUAL`, first) == "Detected" | dat$`HEP B SURFACE AB
 # chart <- read_excel(path = "data/STI_chart_review - deID.xlsx",
 #                       sheet = "chart_review")
 ```
+
+Creates a wide-format dataframe with Infection_ID in columns according to year of admission (Infection dates no longer used):
+
+```{r}
+# dates <- dat %>% 
+#   select(Patient_ID, Infection_ID, Year_of_Admission) %>%
+#   pivot_wider(
+#     id_cols = Patient_ID,
+#     names_from = Year_of_Admission,
+#     values_from = Infection_ID,
+#     names_prefix = "i_",
+#     names_sort = TRUE
+# )
+```
+
+
+We can now merge these admission dates into the main dataset:
+
+```{r}
+# dat <- merge(x = dat, 
+#              y = dates,
+#              by = "Patient_ID",
+#              all.x = TRUE)
+# 
+# dat <- merge(x = dat, 
+#              y = infections,
+#              by = "Patient_ID",
+#              all.x = TRUE)
+# 
+# # cleanup the temporary dataframes (dates, infections)
+# remove(list = c("dates", "infections"))
+```
+
+Old lab data widen & merge code:
+
+```{r}
+# # widen the lab data
+# labsW <- labs %>%
+#   filter(is.na(Lab_Component_Result_Value) == FALSE) %>%
+#   pivot_wider(id_cols = c("Patient_ID", "Infection_ID"),
+#               names_from = Lab_Component_Name,
+#               values_from = Lab_Component_Result_Value,
+#               values_fill = NA,
+#               values_fn = first)
+# # merge the lab data
+# dat <- merge(x = dat,
+#              y = labsW,
+#              by = c("Patient_ID", "Infection_ID"),
+#              all.x = TRUE)
+# # cleanup
+# remove(labsW, labs)
+```
+
+Creates a wide-format dataframe and finds the first (lowest value) infection:
+
+```{r}
+# # creates a constant variable to pivot from
+# dat$constant <- "i"
+# 
+# # pivot the infection IDs to create a wide dataframe of the infection IDs
+# infections <- dat %>% 
+#   select(Patient_ID, Infection_ID, constant) %>%
+#   pivot_wider(
+#     id_cols = Patient_ID,
+#     names_from = constant,
+#     values_from = Infection_ID,
+#     values_fn = list
+# )
+# 
+# # finds the first, 2nd, 3rd infection IDs
+# infections$n <- lapply(infections$i, FUN = length)    #number of infections
+# 
+# infections$i1 <- lapply(infections$i, FUN = min)
+# infections$i2 <- ifelse(infections$n == 2,
+#                         lapply(infections$i, FUN = max),
+#                         ifelse(infections$n == 3,
+#                                lapply(infections$i, FUN = median),
+#                                "NA"))
+# infections$i3 <- ifelse(infections$n == 3,
+#                         lapply(infections$i, FUN = max),
+#                         "NA")
+# 
+# # remove 'i' variable before merging
+# infections$i <- NULL
+# # merge these admission dates into the main dataset:
+# dat <- merge(x = dat, 
+#              y = infections,
+#              by = "Patient_ID",
+#              all.x = TRUE)
+# 
+# # cleanup the unused variables:
+# dat$constant <- NULL
+# # cleanup the temporary dataframe
+# rm(infections)
+```
+
+## HCV (Old encoding)
+
+### Initial Encoding
+
+```{r}
+# dat$hcv <- recode_factor(dat$`hcv_ab_or_pcr_positive`,
+#                          '0' = "HCV-",
+#                          '1' = "HCV+")
+```
+
+We can validate this data by cross-tabulation with chart-review data.  First we can find those patients with positive HCV Ab or HCV DNA:
+
+```{r}
+# # Uncomment to tabulate HCV PCR & Ab results individually 
+# # table(dat$HCVAb_Result, useNA = "ifany")
+# # table(dat$HCV_PCR_result, useNA = "ifany")
+# 
+# dat$hcv2 <- NA
+# dat$hcv2[dat$HCVAb_Result == "Not Detected" | dat$HCVAb_Result == "Negative" | dat$HCVAb_Result == "Indeterminate; confirmation to follow"| dat$HCV_PCR_result == 0] <- 0
+# dat$hcv2[dat$HCVAb_Result == "Detected" | dat$HCVAb_Result == "Positive" | dat$HCV_PCR_result == 1] <- 1
+# 
+# table(dat$hcv2, dat$HCVAb_Result, useNA = "ifany")
+# table(dat$hcv2, dat$hcv, useNA = "ifany")
+```
+
+### Discordance
+
+Cross-tabulation of `hcv_ab_or_pcr_positive` with patients with positive HCV Ab or HCV DNA ('hcv2' variable):
+
+```{r}
+# table(dat$hcv2, dat$hcv, useNA = "ifany")
+```
+
+There is not complete concordance in this encoding.  We can also consider HCV status at admission, to see if this will rectify it:
+
+```{r}
+# table(dat$HCV_status_at_admission, useNA = "ifany")
+# table(dat$HCV_status_at_admission, dat$hcv, useNA = "ifany")
+# table(dat$HCV_status_at_admission, dat$hcv2, useNA = "ifany")
+# dat$hcv3 <- 0 # dat$hcv2
+# dat$hcv3[dat$HCV_status_at_admission != "No prior positive HCV test"] <- 1
+# table(dat$hcv2, dat$hcv3, useNA = "ifany")
+# table(dat$hcv, dat$hcv3, useNA = "ifany")
+```
+
+Now we can combine the HCV chart lab data with the main dataset
+
+```{r}
+# dat$hcv4 <- dat$hcv
+# 
+# # incorporating the new HCV Ab & PCR info from the hcv2 variable:
+# dat$hcv4[is.na(dat$hcv4) & dat$hcv2 == 0] <- "HCV-"
+# dat$hcv4[dat$hcv2 == 1] <- "HCV+"
+# table(dat$hcv, useNA = "ifany")
+# table(dat$hcv2, dat$hcv, useNA = "ifany")
+# table(dat$hcv4, dat$hcv, useNA = "ifany")
+# table(dat$hcv4, useNA = "ifany")
+# ```
+# 
+# We can now combine the HCV chart clinical status prior to admission (hcv3 variale) data with the main dataset
+# 
+# ```{r}
+# table(dat$hcv4, useNA = "ifany")
+# table(dat$hcv3, dat$hcv4, useNA = "ifany")
+# 
+# dat$hcv4[is.na(dat$hcv4) & dat$hcv3 == 0] <- "HCV-"
+# dat$hcv4[dat$hcv3 == 1] <- "HCV+"
+# 
+# table(dat$hcv3, dat$hcv, useNA = "ifany")
+# table(dat$hcv4, dat$hcv, useNA = "ifany")
+# table(dat$hcv4, useNA = "ifany")
+```
+
+This produces a combined HCV+ variable (a composite of the chart review data, HCV lab data, and HCV status prior to admission) with no missing values.
+
+
+

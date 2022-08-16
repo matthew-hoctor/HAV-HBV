@@ -1,18 +1,22 @@
 Issues:
 
+ * Missing values to impute
+   * Gender # 96, 105
+   * race
+   * ethnicity
+   * FIB-4
+ 
  * Outstanding Issues
    * how was the original vaccine administration dataset derived?  
-   
 
  * To Do
    * Incorporate cirrhosis into FIB-4
-   * double check on the FIB-4 timeframe; and double check how other studies have looked at FIB-4
-   * cleanup null to na conversions
    * validate HBV variable against 'HBV Vaccination Status' variable from STI chart review
    
  * Questions
    * lab costs of HBV E antigen?
    * what's going on with blank rows in the ICU dataset?
+   * are the vaccines administered in 'UHS 5C FAMILY MEDICINE' considered to be in hospital?
    
    
  * Answers   
@@ -51,3 +55,5 @@ Issues:
    * Lack of temporality info in labs: unclear which labs to use (e.g. to calculate FIB-4)
    * issues with date info on vaccine administration: Vaccines without an administration date were ordered but not given
    * other out of range liver biomarkers (ALT > 200, total bilirubin levels ≥ 3.0 mg/dL)
+   * double check on the FIB-4 timeframe; and double check how other studies have looked at FIB-4
+   * cleanup null to na conversions
